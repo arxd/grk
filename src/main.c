@@ -60,15 +60,26 @@ void compile_graph(Texture *tex, FMinMax *fun, V2 xrange, V2 yrange)
 	V1 dy = yrange.y - yrange.x;
 	static uint8_t pts[128*128];
 	//~ INFO("DX: %s %f",v2str(xrange), dx);
+	V2 *ys = alloca(sizeof(V2) * GW.w);
+	V1 maxy = -1e100;
+	V1 miny = 1e100;
 	for (int i=0; i < GW.w; ++i) {
 		V1 x0 = xrange.x + i*dx;
 		V2 x = v2(x0,x0+dx);
 		V2 y = fun(x);
 		if (y.x > y.y) 
 			y = v2(y.y, y.x);
-		y = v2sub(y, v2(yrange.x, yrange.x));
+		ys[i] = y;
+		if (y.x < miny)
+			miny = y.x;
+		if (y.y > maxy)
+			maxy = y.y;
+	}
+	
+	for (int i=0; i < GW.w; ++i) {
 		
-		y = v2mult(y, 1.0/dy);
+		V2 y = v2sub(ys[i], v2(miny,miny));
+		y = v2mult(y, 1.0/ (maxy-miny));
 		//~ INFO("%s -> %s %f", v2str(x),  v2str(y), yrange.x);
 		y = v2clamp(y);
 		uint16_t um = y.x*GW.h;
@@ -91,10 +102,45 @@ void compile_graph(Texture *tex, FMinMax *fun, V2 xrange, V2 yrange)
 
 V2 sinfunc(V2 x)
 {
-	V2 y = v2(sin(x.x), sin(x.y));
+	V2 y = v2(sin(x.x)-3.0, sin(x.y)-3.0);
 		
 	
 }
+
+TradeData gfn;
+
+int find_min(V1 t, int a, int b) {
+	if (b == a)
+		return a;
+	int mid = (b-a)/2 + a;
+	if (gfn.data[mid].t < t) {
+		return find_min(t, mid+1, b);
+	return find_min(t, a, mid)
+	
+}
+
+V2 financefun(V2 x)
+{
+	int i = find_min(x.x, 0, gfn.len);
+	if (i == gfn.len)
+		return v2(0.0, 0.0);
+
+	int j = i;
+	while (j < gfm.len && gfn.data[j].t < x.y)
+		++j;
+	if (i == j)
+		return v2(0.0, 0.0)
+	V2 mm = v2(gfn.data[i].val, 0.0);
+	while (i < j) {
+		mm.y = gfn.data[i].val;
+		i++;
+	}
+	return mm;
+}
+
+V1 x0 = 0.0;
+V1 dx0 = 3600*24.0;
+V1 ppx = M_PI/600.0;
 
 int gl_frame(void)
 {
@@ -102,7 +148,17 @@ int gl_frame(void)
 	draw_color(0.2, 0.3, 0.5, 1.0);
 	glLineWidth(2.0);
 
-	compile_graph(&gph0, sinfunc, v2(0.0, 2*M_PI), v2(-1.0, 1.0));
+	if (GW.m.btn) {
+		dx0 = (GW.m.sx - GW.m.sx0)*ppx;
+	} else {
+		x0 += dx0;
+		dx0 = 0.0;
+	}
+	if (GW.m.release) {
+		INFO("%d release", GW.m.release);
+		//~ x0 += dx0;
+	}
+	compile_graph(&gph0, sinfunc, v2(x0+dx0, x0+dx0 + GW.w*ppx), v2(-1.0, 1.0));
 	
 	glUseProgram(g_dfun_shader.id);
 	//~ glActiveTexture(GL_TEXTURE0);
@@ -114,12 +170,14 @@ int gl_frame(void)
 	
 	draw_rect(g_dfun_shader.args[0], (GLfloat[]){-1.0, -1.0}, (GLfloat[]){1.0, 1.0});
 	
+	
+	
 	if (GW.m.btn) {
 		int dx = GW.m.sx - GW.m.sx0;
 		int dy = GW.m.sy - GW.m.sy0;
 		//~ INFO("%d, %d", dx, dy);
-		GW.camdx = 2.0*dx;
-		GW.camdy = -2.0*dy;
+		//GW.camdx = 2.0*dx;
+		//GW.camdy = -2.0*dy;
 	} else {
 		GW.camx += GW.camdx;
 		GW.camy += GW.camdy;
@@ -140,6 +198,10 @@ int gl_frame(void)
 
 int main_init(int argc, char *argv[])
 {
+	ASSERT(argc >= 2, "grk somefile.bin");
+	INFO("LOAD %s", argv[1]);
+	td_init(&gfn);
+	td_load(&gfn, argv[1]);
 	return 0;
 }
 
