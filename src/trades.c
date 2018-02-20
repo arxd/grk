@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 	//~ INFO("%.1f, %f (%f)", t0.data[0].t, t0.data[0].val, t0.data[0].amt);
 	td_merge(&t0, &t1);
 
-	//~ td_write(&t0, argv[3]);
+	td_write(&t0, argv[2]);
 	td_fini(&t1);
 	td_fini(&t0);
 	return 0;

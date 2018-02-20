@@ -5,7 +5,7 @@ Import('env')
 grk_env = env.Clone()
 grk_env.Append(CCFLAGS='-DGL_DRAWING')
 grk_env.GLSL('shaders')
-grk_src = [grk_env.Object('grk_%s.o'%x, x+'.c') for x in ['gl', 'main', 'math', 'logging', 'trades']]
+grk_src = [grk_env.Object('grk_%s.o'%x, x+'.c') for x in ['gl', 'main', 'math', 'logging', 'trades', 'function']]
 pixie_exe = grk_env.Program('grk', grk_src, LIBS=['m', 'GLESv2', 'glfw'])
 
 trade_env = env.Clone()

@@ -5,6 +5,10 @@ typedef float V1;
 
 typedef union u_V2 V2;
 
+
+
+
+
 union u_V2 {
 	V1 xy[2];
 	struct {
