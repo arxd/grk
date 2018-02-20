@@ -20,6 +20,17 @@
 #define KCMD_NUM_LOCK    (1<<16)
 #define KCMD_PRINT_SCREEN    (1<<17)
 #define KCMD_PAUSE    (1<<18)
+#define KCMD_LEFT_SHIFT   (1<<19)
+#define KCMD_LEFT_CONTROL   (1<<20)
+#define KCMD_LEFT_ALT   (1<<21)
+#define KCMD_LEFT_SUPER   (1<<22)
+#define KCMD_RIGHT_SHIFT   (1<<23)
+#define KCMD_RIGHT_CONTROL   (1<<24)
+#define KCMD_RIGHT_ALT   (1<<25)
+#define KCMD_RIGHT_SUPER   (1<<26)
+#define KCMD_MENU   (1<<27)
+
+
 
 #define KALPHA_A (1<<0)
 #define KALPHA_B (1<<1)
@@ -58,6 +69,8 @@
 #define KNUM_7 (1<<7)
 #define KNUM_8 (1<<8)
 #define KNUM_9 (1<<9)
+
+
 
 #ifndef KEY_DEFS_ONLY
 
@@ -556,6 +569,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		bitfield = &GW.num;
 	} else if (key >= GLFW_KEY_ESCAPE && key <= GLFW_KEY_PAUSE) {
 		bit = key - GLFW_KEY_ESCAPE;
+		bitfield = &GW.cmd;
+	} else if (key >= GLFW_KEY_LEFT_SHIFT && key <= GLFW_KEY_MENU ) {
+		bit = key - GLFW_KEY_LEFT_SHIFT + 19;
 		bitfield = &GW.cmd;
 	}
 	if (bitfield) {

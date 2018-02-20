@@ -12,7 +12,8 @@
 
 const char *gl_name = "GRK";
 
-Function1 sinfunc;
+Function1 avg1s;
+Function1 avg1m;
 
 Shader g_dfun_shader = {0};
 Texture gph0;
@@ -42,18 +43,40 @@ void gl_init(void)
 	//~ gph1 = (Texture){0, 4096, 2, GL_ALPHA, GL_UNSIGNED_BYTE};
 	}
 	
-	INFO("Create sin func");
-	f1_init(&sinfunc, 1024);
-	f1_resize(&sinfunc, 1024);
+	f1_init(&avg1s, ceil(gtd.data[gtd.len-1].t - gtd.data[0].t) + 1000);
+	avg1s.x0 = floor(gtd.data[0].t);
+	avg1s.dx = 1.0;
+	long long t = 0, i = -1;
+	double mass = 0.0;
+	double vol = 0.0;
+	while (++i < gtd.len) {
+		if (gtd.data[i].t >= avg1s.x0 + t + 1.0) {
+			f1_resize(&avg1s, avg1s.len+1);
+			if (vol == 0.0) {
+				afg1s.ys[avg1s.len-1] = afg1s.ys[avg1s.len-2];
+			} else {
+				afg1s.ys[avg1s.len-1] = mass/vol;
+			}
+			mass = 0.0;
+			vol = 0.0;
+		}
+		mass += gtd.data[i].val * fabs(gtd.data[i].amt);
+		
+	}
+	
+	
+	f1_resize(&avg1s);
 	sinfunc.x0 = 0.0;
-	sinfunc.dx = sinfunc.len /( 4.0*M_PI);
+	sinfunc.dx = ( 4.0*M_PI) / sinfunc.len;
 	for (int i=0; i < sinfunc.len; ++i)
-		sinfunc.ys[i] = sin(sinfunc.x0 + i*sinfunc.dx);
+		sinfunc.ys[i] = fmod(i*sinfunc.dx, 1.0);//sin(sinfunc.x0 + i*sinfunc.dx);
 	
 	// setup camera
-	g_xy = v2(0.0, 0.0);
+	g_xy = v2(0.0, -0.1);
 	g_dxy = v2 (0.0, 0.0);
-	g_pix = v2(M_PI / 600, 1.0/600);
+	g_pix = v2(4.0*M_PI / GW.w, 1.0/GW.h);
+	
+	INFO("%f %f", sinfunc.len*sinfunc.dx, sinfunc.ys[sinfunc.len-1]);
 	
 	//~ V2 tmm = v2(1e100, -1e100);
 	
@@ -199,6 +222,7 @@ int gl_frame(void)
 
 	if (GW.m.btn) {
 		g_dxy = v2((GW.m.sx - GW.m.sx0)*g_pix.x, -(GW.m.sy - GW.m.sy0)*g_pix.y);
+		INFO("%s", v2str(g_dxy));
 		//~ dx0 =;
 	} else {
 		g_xy = v2sub(g_xy, g_dxy);
@@ -208,9 +232,15 @@ int gl_frame(void)
 	}
 	
 	if (GW.scroll < 0) {
-		g_pix.x *= 1.1;
-	} else {
-		g_pix.y /= 1.1;
+		if (GW.cmd & KCMD_LEFT_SHIFT)
+			g_pix.y *= 1.1;
+		else
+			g_pix.x *= 1.1;
+	} else if (GW.scroll > 0){
+		if (GW.cmd & KCMD_LEFT_SHIFT)
+			g_pix.y /= 1.1;
+		else
+			g_pix.x /= 1.1;
 	}
 	//~ if (GW.m.release) {
 		//~ INFO("%d release", GW.m.release);
