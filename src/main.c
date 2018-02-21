@@ -20,7 +20,6 @@ Shader g_dfun_shader = {0};
 Texture gph0;
 TradeData gtd;
 
-View view;
 
 V2 g_xy;
 V2 g_dxy;
@@ -47,7 +46,7 @@ void gl_init(void)
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glClearColor(0.498, 0.624 , 0.682, 1.0);
-	
+	geom_init();
 	grid_render_init();
 	view.origin = v2(60.0, GW.h/2.0);
 	view.vps = v2(10.0/GW.w, 2.5/GW.h);
@@ -217,16 +216,25 @@ void gl_init(void)
 
 
 
+V1 angle = 0.0;
 
 int gl_frame(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	draw_color(0.2, 0.3, 0.5, 1.0);
+	color = rgb(0.2, 0.3, 0.5);
 	glLineWidth(2.0);
 
 	f1_render(&f_sin, &view, rgb(1.0, 1.0, 0.0));
 	grid_render(&view, v2(1.0, 1.0), v2(0.25, 0.25), rgb(1.0, 0.0, 0.0));
+	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 	
+	if (GW.m.hx >= 0) {
+		
+		draw_line_strip(v2(mxy.x, 0.0), v2(1.0, view.vps.y*GW.h), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
+	}
+	
+
+	angle += 2;
 	
 	if (GW.m.btn) {
 		g_dxy = v2((GW.m.sx - GW.m.sx0)*g_pix.x, -(GW.m.sy - GW.m.sy0)*g_pix.y);
@@ -239,16 +247,10 @@ int gl_frame(void)
 		//~ dx0 = 0.0;
 	}
 	
-	if (GW.scroll < 0) {
-		if (GW.cmd & KCMD_LEFT_SHIFT)
-			view.vps.y *= 1.1;
-		else
-			view.vps.x *= 1.1;
-	} else if (GW.scroll > 0){
-		if (GW.cmd & KCMD_LEFT_SHIFT)
-			view.vps.y /= 1.1;
-		else
-			view.vps.x /= 1.1;
+	if (GW.scroll != 0) {
+		V1 dir = GW.scroll < 0 ? 1.1 : 1.0/1.1;
+		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?dir:1.0, GW.cmd&KCMD_LEFT_SHIFT?1.0:dir);
+		view_zoom_at(&view, mxy, z);
 	}
 	//~ if (GW.m.release) {
 		//~ INFO("%d release", GW.m.release);

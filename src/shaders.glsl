@@ -17,6 +17,29 @@ void main()
 	gl_Position = vec4(pos3.xy, 0.0, 1.0);
 }
 
+////V_GEOM
+#version 100
+precision mediump float;
+attribute vec2 aPos;
+uniform vec2 uOrigin;
+uniform vec2 uVps;
+uniform vec2 uTranslate;
+uniform vec2 uScale;
+uniform vec2 uScreen;
+uniform float uAngle;
+
+void main()
+{
+	float c = cos(uAngle);
+	float s = sin(uAngle);
+	vec2 pos = mat2(c, s, -s, c)*(aPos*uScale)+uTranslate;
+	pos = ((pos/uVps + uOrigin) - uScreen*0.5)/ (0.5*uScreen) ;
+	//~ vec3 pos = uScreen*vec3(pos2, 1.0);
+	gl_Position = vec4(pos, 0.0, 1.0);
+}
+
+
+
 ////V_STRAIGHT
 #version 100
 precision highp float;
@@ -29,6 +52,15 @@ void main()
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
 
+////F_FLAT
+#version 100
+precision mediump float;
+uniform vec4 uColor;
+
+void main()
+{
+	gl_FragColor = uColor;
+}
 
 ////F_DFUN
 #version 100
@@ -55,34 +87,12 @@ void main()
 {
 
 	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y));
-	//~ float fmin = texture2D(uFramebuffer,  vec2(px.x, 0.0)).a;
-	//~ float fmax = texture2D(uFramebuffer,  vec2(px.x, 1.0)).a;
-	//float m = mem(floor(px.x/30.0), mod(floor(px.y/30.0), 4.0)) / 256.0;
 	
 	vec2 mm = fminmax(px.x);
 	if (px.y < mm.x || px.y >= mm.y)
 		discard;
 	
 	gl_FragColor = uColor;
-	//~ } else {
-		//~ gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-	//~ }
-	//~ if (m== 0.0 ) {
-		//~ gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-	//~ } else if (m == 1.0) {
-		//~ gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0);
-	//~ } else if (m == 2.0) {
-		//~ gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-	//~ } else if (m == 127.0) {
-		//~ gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-	//~ } else if (m == 128.0) {
-		//~ gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-	//~ } else if (m == 129.0) {
-		//~ gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
-	//~ } else {
-		//~ gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-	//~ }
-	//~ gl_FragColor = vec4(mem(0.0, 0.0)/256.0, mem(0.0, 1.0)/256.0, 0.0, 1.0);
 }
 
 
@@ -99,10 +109,10 @@ void main()
 {
 	vec2 px = (gl_FragCoord.xy- uOrigin) * uVps ;
 	float alpha = 0.0;
-	//~ if ( mod(px.x/uVps.x, uMinor.x) <= 1.001 || mod(px.y, uMinor.y/uVps.y) <= 1.001)
-		//~ alpha = 0.1;
-	//~ if ( mod(px.x, uMajor.x/uVps.x) <= 1.001 || mod(px.y, uMajor.y/uVps.y) <= 1.001)
-		//~ alpha = 0.5;
+	if ( mod(px.x, uMinor.x) <= uVps.x || mod(px.y, uMinor.y) <= uVps.y)
+		alpha = 0.1;
+	if ( mod(px.x, uMajor.x) <= uVps.x || mod(px.y, uMajor.y) <= uVps.y)
+		alpha = 0.5;
 	if ( abs(px.x)/uVps.x < 1.0 || abs(px.y)/uVps.y < 1.0)
 		alpha = 0.8;
 	gl_FragColor = vec4(uColor.rgb, alpha*uColor.a);

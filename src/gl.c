@@ -181,17 +181,6 @@ char key_pop(void);
 
 /** ========== Drawing =============
  */
-#ifdef GL_DRAWING
-void draw_color(float r, float g, float b, float a);
-void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
-void draw_line_loop(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
-void draw_lines(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
-void draw_polygon(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
-void draw_circle(GLfloat xy[2], GLfloat scale[2]);
-void draw_rect(GLuint aPos, GLfloat xy_ll[2], GLfloat xy_ur[2]);
-
-
-#endif
 
 #if __INCLUDE_LEVEL__ == 0
 
@@ -477,11 +466,11 @@ void do_fullscreen(void)
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	GW.m.hx = xpos;
-	GW.m.hy = ypos;
+	GW.m.hy = GW.h - ypos;
 	GW.m.sx = (xpos<0)?0 : (xpos >GW.w?GW.w:xpos);
 	GW.m.sy = (ypos<0)?0 : (ypos>GW.h?GW.h:ypos);
-	GW.m.x = (((xpos)-(GW.w/2.0))- (GW.camx+GW.camdx)/2.0)/GW.zoomx ;
-	GW.m.y = -(ypos-(GW.h/2.0) + (GW.camy+GW.camdy)/2.0)/GW.zoomy ;	
+	//~ GW.m.x = (((xpos)-(GW.w/2.0))- (GW.camx+GW.camdx)/2.0)/GW.zoomx ;
+	//~ GW.m.y = -(ypos-(GW.h/2.0) + (GW.camy+GW.camdy)/2.0)/GW.zoomy ;	
 }
 void cursor_enter_callback(GLFWwindow* window, int entered)
 {
@@ -582,153 +571,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	}	
 }
 
-#ifdef GL_DRAWING
-Shader g_line_shader = {0};
-GLuint g_line_vb=0;
-#endif
-
-void helper_gl_init(void)
-{
-#ifdef GL_DRAWING
-	if (!g_line_shader.id) {
-		ASSERT(shader_init(&g_line_shader, "#version 100\n\
-precision mediump float;\n\
-attribute vec2 aPos;\n\
-uniform vec2 uScale;\n\
-uniform vec2 uTranslate;\n\
-uniform mat3 uScreen;\n\
-uniform float uAngle;\n\
-void main()\n\
-{\n\
-	float c = cos(uAngle);\n\
-	float s = sin(uAngle);\n\
-	vec2 pos2 = mat2(c, s, -s, c)*(aPos*uScale)+uTranslate;\n\
-	vec3 pos = uScreen*vec3(pos2, 1.0);\n\
-	gl_Position = vec4(pos.xy, 0.0, 1.0);\n\
-}"
-		, "#version 100\n\
-			precision mediump float;\n\
-			uniform vec4 uColor;\n\
-			void main(){gl_FragColor = uColor;}",
-			(char*[]){"aPos", "uScreen","uTranslate", "uScale",  "uAngle", "uColor",  NULL}
-		), "Couldn't create g_line_shader shader");
-		on_exit(shader_on_exit, &g_line_shader);
-	}
-	glDeleteBuffers(1, &g_line_vb);
-	glGenBuffers(1, &g_line_vb);
-	
-#endif
-
-}
-
-#ifdef GL_DRAWING
-
-void draw_rect(GLuint aPos, GLfloat xy_ll[2], GLfloat xy_ur[2])
-{
-	GLfloat pts[4*2] = {
-		xy_ll[0], xy_ll[1], 
-		xy_ll[0], xy_ur[1], 
-		xy_ur[0], xy_ll[1],
-		xy_ur[0], xy_ur[1]};
-	glBindBuffer(GL_ARRAY_BUFFER, g_line_vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 2*4, pts, GL_STATIC_DRAW);
-	glVertexAttribPointer(aPos, 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(aPos);
-	
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-}
-
-
-void draw_color(float r, float g, float b, float a)
-{
-	GW.color[0] = r;
-	GW.color[1] = g;
-	GW.color[2] =b;
-	GW.color[3] =a;
-	
-}
-
-void drawl(GLenum mode, GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
-{
-
-//~ DEBUG("%d %d %f\n", g_line_shader.id, npts, pts[0]);
-	glUseProgram(g_line_shader.id);
-	glBindBuffer(GL_ARRAY_BUFFER, g_line_vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 2*npts, pts, GL_STATIC_DRAW);
-	glVertexAttribPointer(g_line_shader.args[0], 2, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(g_line_shader.args[0]);
-	
-	//~ GW.vmat = (GLfloat[3][3]){1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-	//~ GW.color = (GLfloat[4]){1.0, 1.0, 0.0, 1.0};
-	
-	glUniformMatrix3fv(g_line_shader.args[1], 1, GL_FALSE, &GW.vmat[0][0]);// uScreen
-	glUniform2fv(g_line_shader.args[2],1, xy); // uTranslate
-	glUniform2fv(g_line_shader.args[3],1, scale); //uScale
-	glUniform1f(g_line_shader.args[4], angle*M_PI/180.0); //uScale
-	glUniform4fv(g_line_shader.args[5], 1, GW.color); //uColor
-	glDrawArrays(mode, 0, npts);
-}
-void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
-{
-	drawl(GL_LINE_STRIP, xy, scale, angle, npts, pts);
-}
-void draw_line_loop(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
-{
-	drawl(GL_LINE_LOOP, xy, scale, angle, npts, pts);
-}
-void draw_lines(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
-{
-	drawl(GL_LINES, xy, scale, angle, npts, pts);
-}
-void draw_polygon(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts)
-{
-	drawl(GL_TRIANGLE_FAN, xy, scale, angle, npts, pts);
-}
-void draw_circle(GLfloat xy[2], GLfloat scale[2])
-{
-	static GLfloat cpts[36*2] = {
-	1.0000000000000000000e+00, 0.0000000000000000000e+00, 
-	9.8480775301220802032e-01, 1.7364817766693033119e-01, 
-	9.3969262078590842791e-01, 3.4202014332566871291e-01, 
-	8.6602540378443870761e-01, 4.9999999999999994449e-01, 
-	7.6604444311897801345e-01, 6.4278760968653925190e-01, 
-	6.4278760968653936292e-01, 7.6604444311897801345e-01, 
-	5.0000000000000011102e-01, 8.6602540378443859659e-01, 
-	3.4202014332566882393e-01, 9.3969262078590831688e-01, 
-	1.7364817766693041445e-01, 9.8480775301220802032e-01, 
-	0.0, 1.0000000000000000000e+00, 
-	-1.7364817766693030343e-01, 9.8480775301220802032e-01, 
-	-3.4202014332566849086e-01, 9.3969262078590842791e-01, 
-	-4.9999999999999977796e-01, 8.6602540378443870761e-01, 
-	-6.4278760968653936292e-01, 7.6604444311897801345e-01, 
-	-7.6604444311897790243e-01, 6.4278760968653947394e-01, 
-	-8.6602540378443848557e-01, 5.0000000000000033307e-01, 
-	-9.3969262078590831688e-01, 3.4202014332566887944e-01, 
-	-9.8480775301220802032e-01, 1.7364817766693027568e-01, 
-	-1.0000000000000000000e+00, 0.0, 
-	-9.8480775301220813134e-01, -1.7364817766693002588e-01, 
-	-9.3969262078590842791e-01, -3.4202014332566865740e-01, 
-	-8.6602540378443859659e-01, -5.0000000000000011102e-01, 
-	-7.6604444311897834652e-01, -6.4278760968653891883e-01, 
-	-6.4278760968653947394e-01, -7.6604444311897790243e-01, 
-	-5.0000000000000044409e-01, -8.6602540378443837454e-01, 
-	-3.4202014332566854637e-01, -9.3969262078590842791e-01, 
-	-1.7364817766693033119e-01, -9.8480775301220802032e-01, 
-	0.0, -1.0000000000000000000e+00, 
-	1.7364817766692997036e-01, -9.8480775301220813134e-01, 
-	3.4202014332566899046e-01, -9.3969262078590831688e-01, 
-	4.9999999999999933387e-01, -8.6602540378443904068e-01, 
-	6.4278760968653925190e-01, -7.6604444311897812447e-01, 
-	7.6604444311897779141e-01, -6.4278760968653958496e-01, 
-	8.6602540378443881863e-01, -4.9999999999999966693e-01, 
-	9.3969262078590842791e-01, -3.4202014332566860189e-01, 
-	9.8480775301220802032e-01, -1.7364817766693038670e-01, };
-	drawl(GL_LINE_LOOP, xy, scale, 0.0, 36, cpts);
-}
-
-#endif
-
 void set_window(GLFWwindow *w)
 {
 	GW.window = w;
@@ -745,7 +587,6 @@ void set_window(GLFWwindow *w)
 	int width, height;
 	glfwGetFramebufferSize(GW.window, &width, &height);
 	framebuffer_size_callback(GW.window, width, height);
-	helper_gl_init();
 	gl_init();
 	XINFO("Initialization Complete");
 }
