@@ -56,7 +56,7 @@ void f1_fini(Function1 *self)
 void f1_resize(Function1 *self, int len)
 {
 	if (len > self->memlen) {
-		self->ys = realloc(self->ys, len);
+		self->ys = realloc(self->ys, sizeof(V1)*len);
 		ASSERT(self->ys, "Out of Mem");
 		self->memlen = len;
 	}
@@ -81,7 +81,7 @@ void f2_fini(Function2 *self)
 void f2_resize(Function2 *self, int len)
 {
 	if (len > self->memlen) {
-		self->pts = realloc(self->pts, len);
+		self->pts = realloc(self->pts, sizeof(V2)*len);
 		ASSERT(self->pts, "Out of Mem");
 		self->memlen = len;
 	}
@@ -143,37 +143,7 @@ void f2_subfunc1(Function2 *self, Function1 *other, V2 xrange)
 }
 
 
-static void tex_set(char *tex, int x, uint16_t a, uint16_t b)
-{
-	uint16_t min = (a < b)? a: b;
-	uint16_t max = (a > b)? a: ((a==b)?a+1: b);
-	tex[x*4+0] = (min>>8)&0xFF;
-	tex[x*4+1] = min&0xFF;
-	tex[x*4+2] = (max>>8)&0xFF;
-	tex[x*4+3] = max&0xFF;	
-}
 
-void f1_compile(Function1 *self, char *tex, int w, int h, V2 xrange, V2 yrange)
-{
-	V1 dx = (xrange.y - xrange.x)/w;
-	V1 x0;
-	V2 x, y;
-	Function2 subfunc;
-	f2_init(&subfunc,1024);
-	for(int i=0; i < w; ++i) {
-		x = v2(xrange.x + i*dx, xrange.x + (i+1)*dx);
-		f2_subfunc1(&subfunc, self, x);
-		y = f2_minmax(&subfunc);
-		// scale it
-		y = v2mult(v2sub(y, v2(yrange.x, yrange.x)), 1.0/ (yrange.y - yrange.x));
-		if (y.y < 0.0 || y.x > 1.0) {
-			tex_set(tex, i, 0xFFFE, 0xFFFF);
-		} else {
-			y = v2clamp(y);
-			tex_set(tex, i, (uint16_t)nearbyint(y.x*h), (uint16_t)nearbyint(y.y*h));
-		}
-	}
-}
 
 #endif
 #endif

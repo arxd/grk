@@ -7,6 +7,7 @@ uniform vec2 uTranslate;
 uniform vec2 uScale;
 uniform float uAngle;
 
+
 void main()
 {
 	float c = cos(uAngle);
@@ -33,7 +34,7 @@ void main()
 #version 100
 precision highp float;
 uniform sampler2D uFramebuffer;
-uniform vec2 uYrange;
+//~ uniform vec2 uYrange;
 uniform vec4 uColor;
 
 float mem(float x, float i)
@@ -59,11 +60,13 @@ void main()
 	//float m = mem(floor(px.x/30.0), mod(floor(px.y/30.0), 4.0)) / 256.0;
 	
 	vec2 mm = fminmax(px.x);
-	if (px.y > mm.x && px.y <= mm.y) {
-		gl_FragColor = vec4(0.5, 0.5, 0.8, 1.0);
-	} else {
-		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-	}
+	if (px.y < mm.x || px.y >= mm.y)
+		discard;
+	
+	gl_FragColor = uColor;
+	//~ } else {
+		//~ gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+	//~ }
 	//~ if (m== 0.0 ) {
 		//~ gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	//~ } else if (m == 1.0) {
@@ -81,5 +84,29 @@ void main()
 	//~ }
 	//~ gl_FragColor = vec4(mem(0.0, 0.0)/256.0, mem(0.0, 1.0)/256.0, 0.0, 1.0);
 }
+
+
+////F_GRID
+#version 100
+precision highp float;
+uniform vec2 uOrigin; // unit
+uniform vec2 uVps; // unit/px
+uniform vec2 uMajor;
+uniform vec2 uMinor;
+uniform vec4 uColor;
+
+void main()
+{
+	vec2 px = (gl_FragCoord.xy- uOrigin) * uVps ;
+	float alpha = 0.0;
+	//~ if ( mod(px.x/uVps.x, uMinor.x) <= 1.001 || mod(px.y, uMinor.y/uVps.y) <= 1.001)
+		//~ alpha = 0.1;
+	//~ if ( mod(px.x, uMajor.x/uVps.x) <= 1.001 || mod(px.y, uMajor.y/uVps.y) <= 1.001)
+		//~ alpha = 0.5;
+	if ( abs(px.x)/uVps.x < 1.0 || abs(px.y)/uVps.y < 1.0)
+		alpha = 0.8;
+	gl_FragColor = vec4(uColor.rgb, alpha*uColor.a);
+}
+
 
 ////

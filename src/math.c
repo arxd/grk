@@ -1,13 +1,9 @@
 #ifndef MATH_C
 #define MATH_C
 
-typedef float V1;
+typedef double V1;
 
 typedef union u_V2 V2;
-
-
-
-
 
 union u_V2 {
 	V1 xy[2];
@@ -25,7 +21,10 @@ V1 v2ang(V2 v0);
 V2 v2sub(V2 v0, V2 v1);
 V2 v2add(V2 v0, V2 v1);
 V2 v2norm(V2 v0);
-V2 v2mult(V2 v0, V1 t);
+V2 v2mul(V2 v0, V1 t);
+V2 v2mul2(V2 v0, V2 s);
+V2 v2div(V2 v0, V1 t);
+V2 v2div2(V2 v0, V2 s);
 V2 v2dir(V1 degrees);
 V2 v2neg(V2 v0);
 V2 v2clamp(V2 v0);
@@ -98,12 +97,24 @@ V1 v2dist(V2 v0, V2 v1)
 
 V2 v2norm(V2 v0)
 {
-	return v2mult(v0, 1.0/v2mag(v0));
+	return v2mul(v0, 1.0/v2mag(v0));
 }
 
-V2 v2mult(V2 v0, V1 t)
+V2 v2mul(V2 v0, V1 t)
 {
 	return (V2){v0.x*t, v0.y*t};
+}
+V2 v2mul2(V2 v0, V2 s)
+{
+	return (V2){v0.x*s.x, v0.y*s.y};
+}
+V2 v2div(V2 v0, V1 t)
+{
+	return (V2){v0.x / t, v0.y / t};
+}
+V2 v2div2(V2 v0, V2 s)
+{
+	return (V2){v0.x / s.x, v0.y / s.y};
 }
 
 

@@ -34,7 +34,7 @@ TradeData* td_merge(TradeData *self, TradeData *other);
 #include <unistd.h>
 #include <string.h>
 #include "logging.c"
-
+#include "function.c"
 
 void td_init(TradeData *self)
 {
@@ -59,6 +59,12 @@ void td_write(TradeData *self, const char *filename)
 	INFO("Writing %d records to '%s'", self->len, filename);
 	ASSERT( fwrite(self->data, 8*3, self->len, fout) == self->len, "Can't write to '%s'", filename);
 	fclose(fout);
+}
+
+void td_bin(TradeData *self, double bin_size)
+{
+	
+	
 }
 
 void td_read(TradeData *self, const char *filename)

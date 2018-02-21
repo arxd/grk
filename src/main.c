@@ -5,6 +5,7 @@
 
 #include "logging.c"
 #include "gl.c"
+#include "glmath.c"
 #include "math.c"
 #include "shaders.h"
 #include "trades.c"
@@ -19,11 +20,24 @@ Shader g_dfun_shader = {0};
 Texture gph0;
 TradeData gtd;
 
+View view;
+
 V2 g_xy;
 V2 g_dxy;
 V2 g_pix;
 
-typedef V1 Color[4];
+Function1 f_sin;
+
+void f_sin_init(V1 freq, int cycles)
+{
+	int len = 1024*cycles;
+	f1_init(&f_sin, len);
+	f1_resize(&f_sin, len);
+	f_sin.x0 = 0.0;
+	f_sin.dx = M_PI*2.0/1024;//freq/1024 * /freq
+	for (int i=0; i < len; ++i)
+		f_sin.ys[i] = sin(i*f_sin.dx);
+}
 
 void gl_init(void)
 {
@@ -32,16 +46,18 @@ void gl_init(void)
 	INFO("GL INIT Max tex %d", max_tex);
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glClearColor(0.498, 0.624 , 0.682, 1.0);	
-	if (g_dfun_shader.id == 0) {
-		ASSERT(shader_init(&g_dfun_shader, V_STRAIGHT, F_DFUN, (char*[]){
-			"aPos", "uFramebuffer", "uYrange", "uColor", NULL}),  "Couldn't create shader");
-		on_exit(shader_on_exit, &g_dfun_shader);
-
-		gph0 = (Texture){0, 128, 128, GL_ALPHA, GL_UNSIGNED_BYTE};
-		tex_set(&gph0, 0);
-	//~ gph1 = (Texture){0, 4096, 2, GL_ALPHA, GL_UNSIGNED_BYTE};
-	}
+	glClearColor(0.498, 0.624 , 0.682, 1.0);
+	
+	grid_render_init();
+	view.origin = v2(60.0, GW.h/2.0);
+	view.vps = v2(10.0/GW.w, 2.5/GW.h);
+	view.drag = v2(0.0, 0.0);
+	
+	f_sin_init(5.0, 3);
+	f1_render_init();
+	
+	
+	
 	
 	f1_init(&avg1s, ceil(gtd.data[gtd.len-1].t - gtd.data[0].t) + 1000);
 	avg1s.x0 = floor(gtd.data[0].t);
@@ -49,34 +65,37 @@ void gl_init(void)
 	long long t = 0, i = -1;
 	double mass = 0.0;
 	double vol = 0.0;
+	V2 mm = v2(1e100, -1e100);
+	V1 prevt = 0.0;
 	while (++i < gtd.len) {
 		if (gtd.data[i].t >= avg1s.x0 + t + 1.0) {
 			f1_resize(&avg1s, avg1s.len+1);
 			if (vol == 0.0) {
-				afg1s.ys[avg1s.len-1] = afg1s.ys[avg1s.len-2];
+				avg1s.ys[avg1s.len-1] = avg1s.ys[avg1s.len-2];
 			} else {
-				afg1s.ys[avg1s.len-1] = mass/vol;
+				avg1s.ys[avg1s.len-1] = mass / vol;
 			}
 			mass = 0.0;
 			vol = 0.0;
 		}
-		mass += gtd.data[i].val * fabs(gtd.data[i].amt);
-		
+		//~ INFO("%f", gtd.data[i].t - prevt);
+		prevt = gtd.data[i].t;
+		V1 val = gtd.data[i].val;
+		if (val > mm.y)
+			mm.y = val;
+		if (val < mm.x)
+			mm.x = val;
+		mass += val * fabs(gtd.data[i].amt);
+		vol += fabs(gtd.data[i].amt);
 	}
 	
-	
-	f1_resize(&avg1s);
-	sinfunc.x0 = 0.0;
-	sinfunc.dx = ( 4.0*M_PI) / sinfunc.len;
-	for (int i=0; i < sinfunc.len; ++i)
-		sinfunc.ys[i] = fmod(i*sinfunc.dx, 1.0);//sin(sinfunc.x0 + i*sinfunc.dx);
-	
-	// setup camera
-	g_xy = v2(0.0, -0.1);
+	INFO("LEN: %d seconds   %f  ... %f",avg1s.len, mm.x, mm.y);
+	// setup camer
+	g_xy = v2(avg1s.x0, -mm.x);
 	g_dxy = v2 (0.0, 0.0);
-	g_pix = v2(4.0*M_PI / GW.w, 1.0/GW.h);
+	g_pix = v2(avg1s.dx, (mm.y-mm.x)/GW.h);
 	
-	INFO("%f %f", sinfunc.len*sinfunc.dx, sinfunc.ys[sinfunc.len-1]);
+	INFO("(%f %f)  (%f %f)", g_xy.x, g_xy.y,  g_pix.x, g_pix.y);
 	
 	//~ V2 tmm = v2(1e100, -1e100);
 	
@@ -195,23 +214,8 @@ void gl_init(void)
 	//~ return mm;
 //~ }
 
-void f1_render(Function1 *self, V2 offset, V2 scale, Color color)
-{
-	V2 xrange = v2(offset.x, offset.x+GW.w*scale.x);
-	V2 yrange = v2(offset.y, offset.y + GW.h*scale.y);
-	char *tex = alloca(128*128);
-	f1_compile(self, tex, GW.w, GW.h, xrange, yrange);
-	
-	//~ compile_graph(&gph0, fun, v2(x0-dx0, x0-dx0 + GW.w*ppx), v2(-1.0, 1.0));
-	
-	glUseProgram(g_dfun_shader.id);
-	//~ glActiveTexture(GL_TEXTURE0);
-	tex_set(&gph0, tex);
-	glUniform1i(g_dfun_shader.args[1], 0);//"uFramebuffer", 
-	glUniform2f(g_dfun_shader.args[2], -1.0, 1.0);// "uYrange",
-	glUniform4f(g_dfun_shader.args[3], color[0], color[1], color[2], color[3]);//"uColor"
-	draw_rect(g_dfun_shader.args[0], (GLfloat[]){-1.0, -1.0}, (GLfloat[]){1.0, 1.0});
-}
+
+
 
 
 int gl_frame(void)
@@ -220,9 +224,13 @@ int gl_frame(void)
 	draw_color(0.2, 0.3, 0.5, 1.0);
 	glLineWidth(2.0);
 
+	f1_render(&f_sin, &view, rgb(1.0, 1.0, 0.0));
+	grid_render(&view, v2(1.0, 1.0), v2(0.25, 0.25), rgb(1.0, 0.0, 0.0));
+	
+	
 	if (GW.m.btn) {
 		g_dxy = v2((GW.m.sx - GW.m.sx0)*g_pix.x, -(GW.m.sy - GW.m.sy0)*g_pix.y);
-		INFO("%s", v2str(g_dxy));
+		//~ INFO("%s", v2str(g_dxy));
 		//~ dx0 =;
 	} else {
 		g_xy = v2sub(g_xy, g_dxy);
@@ -233,21 +241,21 @@ int gl_frame(void)
 	
 	if (GW.scroll < 0) {
 		if (GW.cmd & KCMD_LEFT_SHIFT)
-			g_pix.y *= 1.1;
+			view.vps.y *= 1.1;
 		else
-			g_pix.x *= 1.1;
+			view.vps.x *= 1.1;
 	} else if (GW.scroll > 0){
 		if (GW.cmd & KCMD_LEFT_SHIFT)
-			g_pix.y /= 1.1;
+			view.vps.y /= 1.1;
 		else
-			g_pix.x /= 1.1;
+			view.vps.x /= 1.1;
 	}
 	//~ if (GW.m.release) {
 		//~ INFO("%d release", GW.m.release);
 		//~ x0 += dx0;
 	//~ }
 	
-	f1_render(&sinfunc, v2sub(g_xy, g_dxy), g_pix, (V1[]){0.0, 0.0, 0.0, 1.0});
+	//~ f1_render(&avg1s, v2sub(g_xy, g_dxy), g_pix, (V1[]){0.0, 0.0, 0.0, 1.0});
 	
 	//~ if (GW.m.btn) {
 		//~ int dx = GW.m.sx - GW.m.sx0;
