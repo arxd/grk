@@ -467,8 +467,8 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 {
 	GW.m.hx = xpos;
 	GW.m.hy = GW.h - ypos;
-	GW.m.sx = (xpos<0)?0 : (xpos >GW.w?GW.w:xpos);
-	GW.m.sy = (ypos<0)?0 : (ypos>GW.h?GW.h:ypos);
+	GW.m.sx = (xpos<0)?0 : (xpos >= GW.w ? GW.w-1 : xpos);
+	GW.m.sy = (GW.m.hy < 0)? 0 : (GW.m.hy >= GW.h ? GW.h-1 : GW.m.hy);
 	//~ GW.m.x = (((xpos)-(GW.w/2.0))- (GW.camx+GW.camdx)/2.0)/GW.zoomx ;
 	//~ GW.m.y = -(ypos-(GW.h/2.0) + (GW.camy+GW.camdy)/2.0)/GW.zoomy ;	
 }

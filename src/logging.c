@@ -64,7 +64,7 @@ void log_printf(char *level, char *file, int line, const char *fmt, ...)
 	fprintf(stderr, "%6s:%20s:%4d: ",level, &fn[j+1], line);
 	va_list args;
 	va_start (args, fmt);
-	vfprintf (stderr, fmt, args);	
+	vfprintf (stderr, fmt, args);
 	va_end (args);
 	fprintf(stderr, "\n");
 	fflush(stderr);

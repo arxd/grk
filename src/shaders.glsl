@@ -119,4 +119,22 @@ void main()
 }
 
 
+////F_FONT
+#version 100
+precision mediump float;
+uniform float uChar;
+uniform vec4 uColor;
+uniform vec2 uTranslate;
+uniform sampler2D uFramebuffer;
+
+void main()
+{
+	vec2 px = vec2(floor(gl_FragCoord.x), floor(gl_FragCoord.y));
+	float tx = px.x + mod(uChar,21.0) * 6.0 - uTranslate.x;
+	float ty = px.y - (floor(uChar / 21.0)+1.0) * 13.0 - uTranslate.y;
+	float alpha = texture2D(uFramebuffer, (vec2(mod(tx,128.0), mod(ty,128.0))+0.5) / 128.0).a;
+	//~ alpha = mod( floor(px.x/100.0), 2.0);
+	gl_FragColor = vec4(uColor.rgb, alpha*uColor.a);
+}
+
 ////

@@ -46,14 +46,17 @@ void gl_init(void)
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glClearColor(0.498, 0.624 , 0.682, 1.0);
+	
 	geom_init();
 	grid_render_init();
+	font_init();
+	f1_render_init();
+	
 	view.origin = v2(60.0, GW.h/2.0);
 	view.vps = v2(10.0/GW.w, 2.5/GW.h);
 	view.drag = v2(0.0, 0.0);
 	
 	f_sin_init(5.0, 3);
-	f1_render_init();
 	
 	
 	
@@ -217,68 +220,71 @@ void gl_init(void)
 
 
 V1 angle = 0.0;
+typedef struct s_Range Range;
+struct s_Range {
+	V1 threshold;
+	const char *fmt;
+	V1 scale;
+	int major;
+};
+
+//~ Range timebase[] = {
+	//~ { },
+//~ };
 
 int gl_frame(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	color = rgb(0.2, 0.3, 0.5);
+	color = rgb(1.0, 0.8, 0.2);
 	glLineWidth(2.0);
+	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 
 	f1_render(&f_sin, &view, rgb(1.0, 1.0, 0.0));
-	grid_render(&view, v2(1.0, 1.0), v2(0.25, 0.25), rgb(1.0, 0.0, 0.0));
-	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 	
-	if (GW.m.hx >= 0) {
-		
-		draw_line_strip(v2(mxy.x, 0.0), v2(1.0, view.vps.y*GW.h), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
-	}
+	char *xfmt = "%f";
+	char *yfmt = "%f";
+	V2 xmaj = v2(5.0, 5.0);
+	V2 xmin = v2(1.0, 1.0);
+	if (1.0 / view.vps.x > 20) {
+		xfmt = "%.0fs";
+		font_render(v2(100.0,120.0), "Seconds", 1.0/view.vps.x);
+		font_render(v2(100.0,100.0), "%f  %f", 1.0/view.vps.x);
+		V1 thresh = 20;
+		//~ while (1.0/view.vps.x > thresh) {
+			//~ xmaj.x *= 5;
+			//~ xmin.x *= 5;
+			//~ thresh *= 5;
+		//~ }
+	} else if (view.vps.x > 60)
+	
+	grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
+	
+	
+	
+	//~ draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), angle, 3, (GLfloat[]){0.0, 0.0, 1.0, 1.0, 0.0, -1.0});
+	
+	//~ if (GW.m.hx >= 0)
+		//~ draw_line_strip(v2(mxy.x, 0.0), v2(1.0, view.vps.y*GW.h), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
 	
 
 	angle += 2;
 	
+	
+	
+	
+	
 	if (GW.m.btn) {
-		g_dxy = v2((GW.m.sx - GW.m.sx0)*g_pix.x, -(GW.m.sy - GW.m.sy0)*g_pix.y);
-		//~ INFO("%s", v2str(g_dxy));
-		//~ dx0 =;
-	} else {
-		g_xy = v2sub(g_xy, g_dxy);
-		g_dxy = v2(0.0, 0.0);
-		//~ x0 -= dx0;
-		//~ dx0 = 0.0;
+		view.drag = v2sub(v2(GW.m.sx, GW.m.sy), v2(GW.m.sx0, GW.m.sy0));
+	} else if (view.drag.x || view.drag.y) {
+		view.origin = v2add(view.origin, view.drag);
+		view.drag = v2(0.0, 0.0);
 	}
 	
 	if (GW.scroll != 0) {
 		V1 dir = GW.scroll < 0 ? 1.1 : 1.0/1.1;
-		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?dir:1.0, GW.cmd&KCMD_LEFT_SHIFT?1.0:dir);
+		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:dir);
 		view_zoom_at(&view, mxy, z);
 	}
-	//~ if (GW.m.release) {
-		//~ INFO("%d release", GW.m.release);
-		//~ x0 += dx0;
-	//~ }
-	
-	//~ f1_render(&avg1s, v2sub(g_xy, g_dxy), g_pix, (V1[]){0.0, 0.0, 0.0, 1.0});
-	
-	//~ if (GW.m.btn) {
-		//~ int dx = GW.m.sx - GW.m.sx0;
-		//~ int dy = GW.m.sy - GW.m.sy0;
-		//~ INFO("%d, %d", dx, dy);
-		//GW.camdx = 2.0*dx;
-		//GW.camdy = -2.0*dy;
-	//~ } else {
-		//~ GW.camx += GW.camdx;
-		//~ GW.camy += GW.camdy;
-		//~ GW.camdx = 0.0;
-		//~ GW.camdy = 0.0;
-	//~ }
-		
-	//~ if (GW.scroll < 0) {
-		//~ ppx *= 1.1;
-		
-	//~ } else if (GW.scroll > 0) {
-		//~ ppx /= 1.1;
-	//~ }
-	//~ GW.zoomy = GW.zoomx;
 
 	return !(GW.cmd & KCMD_ESCAPE);
 }
