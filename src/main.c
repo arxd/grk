@@ -228,9 +228,16 @@ struct s_Range {
 	int major;
 };
 
-//~ Range timebase[] = {
-	//~ { },
-//~ };
+Range timebase[] = {
+	{ 1.0e-3, "%.0fms", 100.0, 5 },
+	{ 2.0e-3, "%.0fms", 100.0, 5 },
+	{ 1.0e-2, "%.0fms", 100.0, 5 },
+	{ 2.0e-2, "%.0fms", 100.0, 5 },
+	{ 1.0e-1, "%.0fms", 100.0, 5 },
+	{ 2.0e-1, "%.0fms", 100.0, 5 },
+	{ 1.0, "%.0fs", 1.0, 5 },
+	{ 
+};
 
 int gl_frame(void)
 {
@@ -256,7 +263,7 @@ int gl_frame(void)
 			//~ thresh *= 5;
 		//~ }
 	} else if (view.vps.x > 60)
-	
+	color = rgb(0.0, 0.0, 0.0);
 	grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
 	
 	
