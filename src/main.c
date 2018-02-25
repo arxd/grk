@@ -19,7 +19,7 @@ Function1 avg1m;
 Shader g_dfun_shader = {0};
 Texture gph0;
 TradeData gtd;
-
+Function1 gtdf0;
 
 V2 g_xy;
 V2 g_dxy;
@@ -45,15 +45,26 @@ void gl_init(void)
 	INFO("GL INIT Max tex %d", max_tex);
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glClearColor(0.498, 0.624 , 0.682, 1.0);
+	glClearColor(0.0, 0.0 , 0.0, 1.0);
 	
 	geom_init();
 	grid_render_init();
 	font_init();
 	f1_render_init();
 	
-	view.origin = v2(60.0, GW.h/2.0);
-	view.vps = v2(10.0/GW.w, 2.5/GW.h);
+	V2 mm = v2(1e100, -1e100);
+	for (int i=0; i < gtdf0.len; ++i) {
+		if (gtdf0.ys[i] < mm.x)
+			mm.x = gtdf0.ys[i];
+		if (gtdf0.ys[i] > mm.y)
+			mm.y = gtdf0.ys[i];
+		
+		
+	}
+	INFO("n=%d  min=%f  max=%f", gtdf0.len, mm.x, mm.y);
+	V1 yvps = (mm.y-mm.x)/GW.h;
+	view.origin = v2(60.0, 0.0);//mm.x/yvps);
+	view.vps = v2(356.0*24*3600.0/GW.w, mm.y/GW.h);
 	view.drag = v2(0.0, 0.0);
 	
 	f_sin_init(5.0, 3);
@@ -61,43 +72,43 @@ void gl_init(void)
 	
 	
 	
-	f1_init(&avg1s, ceil(gtd.data[gtd.len-1].t - gtd.data[0].t) + 1000);
-	avg1s.x0 = floor(gtd.data[0].t);
-	avg1s.dx = 1.0;
-	long long t = 0, i = -1;
-	double mass = 0.0;
-	double vol = 0.0;
-	V2 mm = v2(1e100, -1e100);
-	V1 prevt = 0.0;
-	while (++i < gtd.len) {
-		if (gtd.data[i].t >= avg1s.x0 + t + 1.0) {
-			f1_resize(&avg1s, avg1s.len+1);
-			if (vol == 0.0) {
-				avg1s.ys[avg1s.len-1] = avg1s.ys[avg1s.len-2];
-			} else {
-				avg1s.ys[avg1s.len-1] = mass / vol;
-			}
-			mass = 0.0;
-			vol = 0.0;
-		}
+	//~ f1_init(&avg1s, ceil(gtd.data[gtd.len-1].t - gtd.data[0].t) + 1000);
+	//~ avg1s.x0 = floor(gtd.data[0].t);
+	//~ avg1s.dx = 1.0;
+	//~ long long t = 0, i = -1;
+	//~ double mass = 0.0;
+	//~ double vol = 0.0;
+	//~ V2 mm = v2(1e100, -1e100);
+	//~ V1 prevt = 0.0;
+	//~ while (++i < gtd.len) {
+		//~ if (gtd.data[i].t >= avg1s.x0 + t + 1.0) {
+			//~ f1_resize(&avg1s, avg1s.len+1);
+			//~ if (vol == 0.0) {
+				//~ avg1s.ys[avg1s.len-1] = avg1s.ys[avg1s.len-2];
+			//~ } else {
+				//~ avg1s.ys[avg1s.len-1] = mass / vol;
+			//~ }
+			//~ mass = 0.0;
+			//~ vol = 0.0;
+		//~ }
 		//~ INFO("%f", gtd.data[i].t - prevt);
-		prevt = gtd.data[i].t;
-		V1 val = gtd.data[i].val;
-		if (val > mm.y)
-			mm.y = val;
-		if (val < mm.x)
-			mm.x = val;
-		mass += val * fabs(gtd.data[i].amt);
-		vol += fabs(gtd.data[i].amt);
-	}
+		//~ prevt = gtd.data[i].t;
+		//~ V1 val = gtd.data[i].val;
+		//~ if (val > mm.y)
+			//~ mm.y = val;
+		//~ if (val < mm.x)
+			//~ mm.x = val;
+		//~ mass += val * fabs(gtd.data[i].amt);
+		//~ vol += fabs(gtd.data[i].amt);
+	//~ }
 	
-	INFO("LEN: %d seconds   %f  ... %f",avg1s.len, mm.x, mm.y);
+	//~ INFO("LEN: %d seconds   %f  ... %f",avg1s.len, mm.x, mm.y);
 	// setup camer
-	g_xy = v2(avg1s.x0, -mm.x);
-	g_dxy = v2 (0.0, 0.0);
-	g_pix = v2(avg1s.dx, (mm.y-mm.x)/GW.h);
+	//~ g_xy = v2(avg1s.x0, -mm.x);
+	//~ g_dxy = v2 (0.0, 0.0);
+	//~ g_pix = v2(avg1s.dx, (mm.y-mm.x)/GW.h);
 	
-	INFO("(%f %f)  (%f %f)", g_xy.x, g_xy.y,  g_pix.x, g_pix.y);
+	//~ INFO("(%f %f)  (%f %f)", g_xy.x, g_xy.y,  g_pix.x, g_pix.y);
 	
 	//~ V2 tmm = v2(1e100, -1e100);
 	
@@ -220,24 +231,8 @@ void gl_init(void)
 
 
 V1 angle = 0.0;
-typedef struct s_Range Range;
-struct s_Range {
-	V1 threshold;
-	const char *fmt;
-	V1 scale;
-	int major;
-};
 
-Range timebase[] = {
-	{ 1.0e-3, "%.0fms", 100.0, 5 },
-	{ 2.0e-3, "%.0fms", 100.0, 5 },
-	{ 1.0e-2, "%.0fms", 100.0, 5 },
-	{ 2.0e-2, "%.0fms", 100.0, 5 },
-	{ 1.0e-1, "%.0fms", 100.0, 5 },
-	{ 2.0e-1, "%.0fms", 100.0, 5 },
-	{ 1.0, "%.0fs", 1.0, 5 },
-	{ 
-};
+
 
 int gl_frame(void)
 {
@@ -246,7 +241,8 @@ int gl_frame(void)
 	glLineWidth(2.0);
 	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 
-	f1_render(&f_sin, &view, rgb(1.0, 1.0, 0.0));
+	//~ f1_render(&f_sin, &view, rgb(1.0, 1.0, 0.0));
+	f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
 	
 	char *xfmt = "%f";
 	char *yfmt = "%f";
@@ -254,8 +250,6 @@ int gl_frame(void)
 	V2 xmin = v2(1.0, 1.0);
 	if (1.0 / view.vps.x > 20) {
 		xfmt = "%.0fs";
-		font_render(v2(100.0,120.0), "Seconds", 1.0/view.vps.x);
-		font_render(v2(100.0,100.0), "%f  %f", 1.0/view.vps.x);
 		V1 thresh = 20;
 		//~ while (1.0/view.vps.x > thresh) {
 			//~ xmaj.x *= 5;
@@ -264,8 +258,11 @@ int gl_frame(void)
 		//~ }
 	} else if (view.vps.x > 60)
 	color = rgb(0.0, 0.0, 0.0);
-	grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
-	
+	//~ grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
+	grid_time_render(&view,  rgb(1.0, 0.0, 0.0));
+
+	grid_vert_render(&view,  rgb(0.6, 0.5, 0.0));
+
 	
 	
 	//~ draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), angle, 3, (GLfloat[]){0.0, 0.0, 1.0, 1.0, 0.0, -1.0});
@@ -289,7 +286,7 @@ int gl_frame(void)
 	
 	if (GW.scroll != 0) {
 		V1 dir = GW.scroll < 0 ? 1.1 : 1.0/1.1;
-		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:dir);
+		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:1.0);
 		view_zoom_at(&view, mxy, z);
 	}
 
@@ -302,6 +299,8 @@ int main_init(int argc, char *argv[])
 	INFO("LOAD %s", argv[1]);
 	td_init(&gtd);
 	td_read(&gtd, argv[1]);
+	td_bin(&gtd, &gtdf0, 60.0, KERN_RECT, 120.0);
+	
 	return 0;
 }
 

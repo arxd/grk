@@ -17,11 +17,14 @@ struct s_Function2 {
 	V2 *pts;
 };
 
+
 void f1_init(Function1 *self, int memlen);
 void f1_resize(Function1 *self, int len);
 void f1_fini(Function1 *self);
 V1 f1_eval_at(Function1 *self, V1 x);
 void f1_compile(Function1 *self, char *tex, int w, int h, V2 xrange, V2 yrange);
+void f1_append(Function1 *self, V1 y);
+
 
 void f2_init(Function2 *self, int memlen);
 void f2_resize(Function2 *self, int len);
@@ -87,6 +90,14 @@ void f2_resize(Function2 *self, int len)
 	}
 	self->len = len;
 }
+
+void f1_append(Function1 *self, V1 y)
+{
+	f1_resize(self, self->len+1);
+	self->ys[self->len-1] = y;
+	
+}
+
 
 V1 f1_eval_at(Function1 *self, V1 x)
 {

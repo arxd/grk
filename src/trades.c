@@ -2,6 +2,8 @@
 #define TRADES_C
 
 #include <stdlib.h>
+#include "function.c"
+#include "math.c"
 
 typedef struct s_Trade Trade;
 typedef struct s_TradeData TradeData;
@@ -18,12 +20,14 @@ struct s_Trade {
 	double amt;
 };
 
+typedef enum {KERN_RECT, } KernType;
 
 void td_init(TradeData *self);
 void td_fini(TradeData *self);
 void td_write(TradeData *self, const char *filename);
 void td_read(TradeData *self, const char *filename);
 TradeData* td_merge(TradeData *self, TradeData *other);
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth);
 
 #if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
 
@@ -31,10 +35,10 @@ TradeData* td_merge(TradeData *self, TradeData *other);
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <math.h>
 #include <unistd.h>
 #include <string.h>
 #include "logging.c"
-#include "function.c"
 
 void td_init(TradeData *self)
 {
@@ -61,10 +65,43 @@ void td_write(TradeData *self, const char *filename)
 	fclose(fout);
 }
 
-void td_bin(TradeData *self, double bin_size)
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize)
 {
+	V1 t0 = self->data[0].t;
+	V1 tN = self->data[self->len-1].t;
+	INFO("From %f s by %f  (%d ... %d)", tN-t0, sample_rate,  self->len, (int)((tN-t0) / sample_rate));
 	
+	f1_init(func, (tN-t0) / sample_rate + 1);
+	func->x0 = 0.0;
+	func->dx = sample_rate;
 	
+	V1 t = t0;
+	int a = 0, b;
+	while (t <= tN) {
+		while (self->data[a].t < t - ksize)
+			a++;
+		b = a;
+		while (b < self->len && self->data[b].t < t + ksize) {
+			b++;
+		}
+		V1 mass = 0.0;
+		V1 vol = 0.0;
+		for (int i=a; i < b; ++i) {
+			V1 factor = fabs(self->data[i].amt);
+			mass += self->data[i].val*factor;
+			vol += factor;
+		}
+		if (vol) {
+			//~ INFO("v=%f  avg=%f", vol, mass/vol);
+			f1_append(func, -log(mass/vol)/log(2.0));
+		} else {
+			//~ INFO("v=%f  avg=NA", vol);
+			f1_append(func, func->ys[func->len-1]);
+		}
+		t += sample_rate;
+	}
+	
+	INFO("gen %d", func->len);
 }
 
 void td_read(TradeData *self, const char *filename)

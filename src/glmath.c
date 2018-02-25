@@ -40,6 +40,8 @@ V2 view_UR(View *self);
 
 void grid_render_init(void);
 void grid_render(View *view,  const char* fmtx, const char* fmty, V2 major, V2 minor, Color color);
+void grid_time_render(View *view,  Color clr);
+void grid_vert_render(View *view, Color clr);
 
 void f1_render_init(void);
 void f1_render(Function1 *self, View *view, Color color);
@@ -53,6 +55,7 @@ void f1_render(Function1 *self, View *view, Color color);
 void geom_send(GLenum mode, GLuint aPos, int npts, GLfloat *pts);
 void draw_line_strip(V2 xy, V2 scale, V1 angle, int npts, GLfloat *pts);
 void geom_init(void);
+void bind_geom(GLuint aPos, int npts, GLfloat *pts);
 
 void font_init(void);
 void font_render(V2 screen_xy, const char *fmt, ...);
@@ -69,6 +72,9 @@ void font_test(void);
 
 View view;
 Color color;
+static Shader g_grid_shader = {0};
+static GLfloat GEOM_FSRECT[2*4] = {-1.0,-1.0,  -1.0,1.0,  1.0,-1.0,  1.0,1.0};
+static GLfloat GEOM_RECT[] = {0.0,0.0,   0.0,1.0,   1.0,0.0,   1.0,1.0};
 
 
 Color rgb(V1 r, V1 g, V1 b)
@@ -131,61 +137,6 @@ void view_set(View *self, V2 xrange, V2 yrange, View *other)
 }
 
 
-/* ============== GRID =============
-*/
-static Shader g_grid_shader = {0};
-static GLfloat GEOM_FSRECT[2*4] = {-1.0,-1.0,  -1.0,1.0,  1.0,-1.0,  1.0,1.0};
-static GLfloat GEOM_RECT[] = {0.0,0.0,   0.0,1.0,   1.0,0.0,   1.0,1.0};
-
-void grid_render_init(void)
-{
-	if (g_grid_shader.id)
-		return;
-	ASSERT(shader_init(&g_grid_shader, V_STRAIGHT, F_GRID, (char*[]){
-		"aPos", "uOrigin", "uVps", "uMajor", "uMinor", "uColor", NULL}), "Couldn't create shader"); // unit
-	on_exit(shader_on_exit, &g_grid_shader);
-}
-
-void grid_render(View *view,  const char* fmtx, const char* fmty, V2 major, V2 minor, Color clr)
-{
-	glUseProgram(g_grid_shader.id);
-	glUniform2f(g_grid_shader.args[1], view->origin.x + view->drag.x, view->origin.y + view->drag.y);// uOffset
-	glUniform2f(g_grid_shader.args[2], view->vps.x, view->vps.y);// uScale
-	glUniform2f(g_grid_shader.args[3], major.x, major.y);// uMajor
-	glUniform2f(g_grid_shader.args[4], minor.x, minor.y);// uMinor
-	glUniform4fv(g_grid_shader.args[5], 1, clr.rgba);// uColor
-	geom_send(GL_TRIANGLE_STRIP, g_grid_shader.args[0], 4, GEOM_FSRECT);
-	
-	V2 ll = screen_to_view(view, v2(0.0, 0.0));
-	V2 ur = screen_to_view(view, v2(GW.w, GW.h));
-	
-	//INFO("%f  %f,   %f  %f", ll.x, ll.y, floor(ll.x), floor(ll.y));//nearbyint(floor(ll.x)),  ll.y,  nearbyint(floor(ll.y)));
-	Color color_backup = color;
-	color = clr;
-	long long dx = floor(ll.x / major.x);
-	while (dx * major.x < ceil(ur.x)) {
-		//~ INFO(fmtx, dx * major.x);
-		V2 fxy = view_to_screen(view, v2(dx*major.x, 0.0));
-		fxy.y = 0.0;
-		fxy.x += 2.0;
-		font_render(fxy, fmtx, dx*major.x);
-		dx ++;
-	}
-	
-	long long dy = floor(ll.y / major.y);
-	while (dy * major.y < ceil(ur.y)) {
-		//~ INFO(fmtx, dx * major.x);
-		V2 fxy = view_to_screen(view, v2(0.0, dy*major.y));
-		fxy.y += 2.0;
-		fxy.x = 1.0;
-		font_render(fxy, fmty, dy*major.y);
-		dy ++;
-	}
-
-	color = color_backup;
-	
-	
-}
 
 
 /* ============== Function =============
@@ -335,7 +286,150 @@ void draw_line_strip(V2 xy, V2 scale, V1 angle, int npts, GLfloat *pts)
 //~ {
 	//~ geom_render(GL_TRIANGLE_FAN, xy, scale, angle, npts, pts);
 //~ }
+/* ============== GRID =============
+*/
+typedef struct s_Range Range;
+struct s_Range {
+	V1 vpg, scale;
+	int lab;
+	const char *fmt;
+};
 
+
+Range time_base[] = {
+	{100*31557600.0, 1.0/31557600.0, 5, "%.0fy"},
+	{50*31557600.0, 1.0/31557600.0, 2, "%.0fy"},
+	{25*31557600.0, 1.0/31557600.0, 4, "%.0fy"},
+	{10*31557600.0, 1.0/31557600.0, 5, "%.0fy"},
+	{5*31557600.0, 1.0/31557600.0, 2, "%.0fy"},
+	{31557600.0, 1.0/31557600.0, 5, "%.0fy"},
+	{31557600.0/3, 1.0/31557600.0, 4, "%.0fy"},
+	{31557600.0/12, 1.0/(31557600.0/12), 3, "%.0fmth"},
+	{7*86400.0, 1.0/(7*86400.0), 4, "%.0fw"},
+	{86400.0, 1.0/(7*86400.0), 7, "%.0fw"},
+	{12*3600.0, 1.0/86400.0, 2, "%.0fd"},
+	{4*3600.0, 1.0/3600.0, 3, "%.0fh"},
+	{3600.0, 1.0/3600.0, 5, "%.0fh"},
+	{30*60.0, 1.0/3600.0, 2, "%.0fh"},
+	{10*60.0, 1.0/60.0, 3, "%.0fm"},
+	{5*60.0, 1.0/60.0, 2, "%.0fm"},
+	{60.0, 1.0/60.0, 5, "%.0fm"},
+	{30.0, 1.0/60.0, 2, "%.0fm"},
+	{10.0, 1.0, 3, "%.0fs"},
+	{5.0, 1.0, 2, "%.0fs"},
+	{1.0, 1.0, 5, "%.0fs"},
+	{500.0e-3, 1.0, 2, "%.0fs"},
+	{250.0e-3, 1.0, 4, "%.0fs"},
+	{100.0e-3, 1.0e3, 5, "%.0fms"},
+	{50.0e-3, 1.0e3, 2, "%.0fms"},
+	{25.0e-3, 1.0e3, 4, "%.0fms"},
+	{10e-3, 1.0e3, 5, "%.0fms"},
+	{5.0e-3, 1.0e3, 2, "%.0fms"},
+	{1.0e-3, 1.0e3, 5, "%.0fms"},
+	{500.0e-6, 1.0e3, 2, "%.0fms"},
+	{250.0e-6, 1.0e3, 4, "%.0fms"},
+	{100.0e-6, 1.0e6, 5, "%.0fus"},
+	{50.0e-6, 1.0e6, 2, "%.0fus"},
+	{25.0e-6, 1.0e6, 4, "%.0fus"},
+	{10e-6, 1.0e6, 5, "%.0fus"},
+	{5.0e-6, 1.0e6, 2, "%.0fus"},
+	{1.0e-6, 1.0e6, 5, "%.0fus"},
+	{500.0e-9, 1.0e6, 2, "%.0fus"},
+	{250.0e-9, 1.0e6, 4, "%.0fus"},
+	{100.0e-9, 1.0e9, 5, "%.0fns"},
+	{50.0e-9, 1.0e9, 2, "%.0fns"},
+	{25.0e-9, 1.0e9, 4, "%.0fns"},
+	{10e-9, 1.0e9, 5, "%.0fns"},
+	{5.0e-9, 1.0e9, 2, "%.0fns"},
+	{1.0e-9, 1.0e9, 5, "%.0fns"},
+	{500.0e-12, 1.0e9, 2, "%.0fns"},
+	{250.0e-12, 1.0e9, 4, "%.0fns"},
+};
+ 
+
+void grid_render_init(void)
+{
+	if (g_grid_shader.id)
+		return;
+	ASSERT(shader_init(&g_grid_shader, V_STRAIGHT, F_GRID, (char*[]){
+		"aPos", "uOrigin", "uVps", "uMajor", "uMinor", "uColor", NULL}), "Couldn't create shader"); // unit
+	on_exit(shader_on_exit, &g_grid_shader);
+}
+
+void screen_line(V2 p1, V2 p2, Color c)
+{
+	bind_geom(g_geom_shader.args[0], 2, (GLfloat[]){p1.x, p1.y, p2.x, p2.y});
+	glUniform2f(g_geom_shader.args[1], 0.0, 0.0); // uOrigin
+	glUniform2f(g_geom_shader.args[2], 1.0, 1.0); // uVps
+	glUniform2f(g_geom_shader.args[3], GW.w, GW.h); // uScreen
+	glUniform2f(g_geom_shader.args[4], 0.0, 0.0); // uTranslate
+	glUniform2f(g_geom_shader.args[5], 1.0,  1.0); // uScale
+	glUniform1f(g_geom_shader.args[6], 0.0); //uAngle
+	glUniform4fv(g_geom_shader.args[7], 1, c.rgba); //uColor
+	glDrawArrays(GL_LINES, 0, 2);
+}
+
+void grid_vert_render(View *view, Color clr)
+{
+	
+	V2 ll = screen_to_view(view, v2(0.0, 0.0));
+	V2 ur = screen_to_view(view, v2(GW.w, GW.h));
+	V1 dy = ur.y - ll.y;
+	V1 grid = dy *20.0 / GW.h;
+	V1 range = floor(log(grid) / log(10.0));
+	V1 multipliers[] = {1.0, 2.0, 5.0, 10.0};
+	V1 mdist = fabs( pow(10, range) - grid);
+	int mi = 0;
+	for( int i=1; i < 4; ++i) {
+		V1 dist = fabs( pow(10, range)*multipliers[i] - grid);
+		if (dist < mdist) {
+			mdist = dist;
+			mi = i;
+		}
+	}
+	range = pow(10, range)*multipliers[mi];//  /  view->vps.y;
+	int num_lines = ceil(dy / range);
+	for (int i=0; i < num_lines; ++i) {
+		if (i%5==0) {
+			clr.a = 0.8;
+		} else {
+			clr.a = 0.3;
+		}
+		screen_line(v2(0.0, i*range / view->vps.y), v2(GW.w, i*range/ view->vps.y), clr);
+	}
+	color = rgb(1.0, 1.0, 1.0);
+	font_render(v2(10.0,GW.h-20.0), "%f", range);
+	//~ font_render(v2(100.0,100.0), "%f  %f", 1.0/view.vps.x);
+
+	//~ dy = 
+	//~ V1 half = GW.h / 2.0;
+	//~ half/dy = pixels/
+	
+}
+
+void grid_time_render(View *view,  Color clr)
+{
+	V2 ll = screen_to_view(view, v2(0.0, 0.0));
+	V2 ur = screen_to_view(view, v2(GW.w, GW.h));
+	int i=47;
+	while (--i > 0 && time_base[i].vpg / view->vps.x < 20.0);
+	long long dx = floor(ll.x / time_base[i].vpg);
+	while (dx * time_base[i].vpg < ceil(ur.x)) {
+		V2 fxy = view_to_screen(view, v2(dx*time_base[i].vpg, 0.0));
+		fxy.y = 0.0;
+		clr.a = 0.3;
+		if (dx%time_base[i].lab) {
+			glLineWidth(1.0);
+		} else {
+			glLineWidth(2.0);
+			color = clr;
+			font_render(v2(fxy.x+2, fxy.y), time_base[i].fmt, dx*time_base[i].vpg*time_base[i].scale);
+		}
+		glUseProgram(g_geom_shader.id);
+		screen_line(fxy, v2(fxy.x, GW.h), clr);
+		dx ++;
+	}
+}
 
 /** ========== FONT ==============
 */
@@ -394,23 +488,6 @@ void font_init(void)
 		tex[128*(127 - b/128) + (b%128)] = 255 * ((font_data[b / 32] >> (b%32))&1);
 	tex_set(&g_font_texture, tex);
 	
-}
-
-void font_test(void)
-{
-	glUseProgram(g_font_shader.id);
-	glBindTexture(GL_TEXTURE_2D, g_font_texture.id);
-	bind_geom(g_font_shader.args[0], 4, GEOM_RECT);
-	glUniform2f(g_font_shader.args[1], 0.0, 0.0); // uOrigin
-	glUniform2f(g_font_shader.args[2], 1.0, 1.0); // uVps
-	glUniform2f(g_font_shader.args[3], GW.w, GW.h); // uScreen
-	glUniform2f(g_font_shader.args[4], 0.0, 0.0); // uTranslate
-	glUniform2f(g_font_shader.args[5], 6.0,  13.0); // uScale
-	glUniform1f(g_font_shader.args[6], 0.0); //uAngle
-	glUniform1i(g_font_shader.args[7], 0); // uFramebuffer
-	glUniform1f(g_font_shader.args[8], 'A');
-	glUniform4fv(g_font_shader.args[9], 1, color.rgba); //uColor
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 void font_render(V2 screen_xy, const char *fmt, ...)

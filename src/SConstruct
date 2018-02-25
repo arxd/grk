@@ -10,5 +10,5 @@ pixie_exe = grk_env.Program('grk', grk_src, LIBS=['m', 'GLESv2', 'glfw'])
 
 trade_env = env.Clone()
 trade_env.Append(CCFLAGS='-DINCLUDE_MAIN')
-trade_src = [trade_env.Object('trd_%s.o'%x, x+'.c') for x in ['trades', 'logging']]
-merge = trade_env.Program('merge',trade_src, LIBS=[],)
+trade_src = [trade_env.Object('trd_%s.o'%x, x+'.c') for x in ['trades', 'logging', 'math','function']]
+merge = trade_env.Program('merge',trade_src, LIBS=['m'],)
