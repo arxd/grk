@@ -31,7 +31,7 @@ Color hue(V1 hue);
 
 void view_drag(View *self, V2 screen_dxy);
 void view_drag_stop(View *self);
-void view_set(View *self, V2 xrange, V2 yrange, View *screen);
+void view_fit(View *self, Function1 *func);
 V2 unit_to_screen(View *self, V2 view_xy);
 V2 screen_to_view(View *self, V2 xy_screen);
 void view_zoom_at(View *self, V2 xy_view, V2 zoom);
@@ -122,21 +122,18 @@ void view_zoom_at(View *self, V2 xy_view, V2 zoom)
 	self->origin = v2add(self->origin, v2div2(delta, self->vps));
 }
 
-void view_set(View *self, V2 xrange, V2 yrange, View *other)
+void view_fit(View *self, Function1 *func)
 {
-	//~ View screen;
-	//~ if (!other) {
-		//~ other = &screen;
-		//~ screen.drag = v2(0.0, 0.0);
-		//~ screen.offset = v2(0.0, 0.0);
-		//~ screen.scale = v2(GW.w, GW.h);
-	//~ }
+	V2 xrange = v2(func->x0, func->len*func->dx);
+	V2 yrange = f1_minmax(func);
 	
-	//~ self->drag = v2(0.0, 0.0);
-	//~ self->offset = v2(
+	V1 yvps = (yrange.y - yrange.x) / GW.h;
+	V1 xvps = (xrange.y - xrange.x) / GW.w;
+	INFO("view_fit   xrange (%f, %f) %f   yrange(%f, %f) %f", xrange.x, xrange.y, xvps, yrange.x, yrange.y, yvps);
+	self->origin = v2(-xrange.x / xvps, -yrange.x / yvps);// 0.0);//mm.x/yvps);
+	self->vps = v2(xvps, yvps);
+	self->drag = v2(0.0, 0.0);
 }
-
-
 
 
 /* ============== Function =============
@@ -178,12 +175,12 @@ void f1_render(Function1 *self, View *view, Color color)
 			ymin = (y.x < 0.0)? 0 : nearbyint(y.x);
 			ymax = (y.y >= GW.h)? GW.h-1 : nearbyint(y.y);
 		}
-		ymin = (ymin < ymax)? ymin: ymax;
-		ymax = (ymin > ymax)? ymin: ((ymin==ymax)? ymin+1: ymax);
-		tex[i*4+0] = (ymin>>8)&0xFF;
-		tex[i*4+1] = ymin&0xFF;
-		tex[i*4+2] = (ymax>>8)&0xFF;
-		tex[i*4+3] = ymax&0xFF;	
+		uint16_t ym = (ymin < ymax)? ymin: ymax;
+		uint16_t yx = (ymin > ymax)? ymin: ((ymin==ymax)? ymin+1: ymax);
+		tex[i*4+0] = (ym>>8)&0xFF;
+		tex[i*4+1] = ym&0xFF;
+		tex[i*4+2] = (yx>>8)&0xFF;
+		tex[i*4+3] = yx&0xFF;	
 	}
 	
 	//~ compile_graph(&gph0, fun, v2(x0-dx0, x0-dx0 + GW.w*ppx), v2(-1.0, 1.0));

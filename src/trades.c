@@ -20,7 +20,6 @@ struct s_Trade {
 	double amt;
 };
 
-typedef enum {KERN_RECT, } KernType;
 
 void td_init(TradeData *self);
 void td_fini(TradeData *self);
@@ -87,13 +86,15 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 		V1 mass = 0.0;
 		V1 vol = 0.0;
 		for (int i=a; i < b; ++i) {
-			V1 factor = fabs(self->data[i].amt);
+			V1 factor = fabs(self->data[i].amt) * window_func(ktype, t - self->data[i].t, ksize);
 			mass += self->data[i].val*factor;
 			vol += factor;
 		}
 		if (vol) {
 			//~ INFO("v=%f  avg=%f", vol, mass/vol);
-			f1_append(func, -log(mass/vol)/log(2.0));
+			//f1_append(func, log(mass/vol)/log(2.0));
+			f1_append(func, mass/vol);
+			
 		} else {
 			//~ INFO("v=%f  avg=NA", vol);
 			f1_append(func, func->ys[func->len-1]);
