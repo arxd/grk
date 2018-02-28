@@ -48,9 +48,9 @@ void gl_init(void)
 	//~ f1_window(&w_blackharris, W_BLACKHARRIS, 1024, 1.0, v2(-1.2, 1.2));
 	//~ f1_window(&w_gauss, W_APXGAUSS, 1024, 1.0, v2(-1.2, 1.2));
 	
-	td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0);
+	td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0, 1);
 	
-	td_bin(&gtd, &avg1m, 60.0, W_BLACKHARRIS, 3600.0);
+	td_bin(&gtd, &avg1m, 60.0, W_BLACKHARRIS, 3600.0, 1);
 
 	view_fit(&view, &gtdf0);
 }

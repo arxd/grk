@@ -4,6 +4,7 @@
 #include "math.c"
 typedef struct s_Function1 Function1;
 typedef struct s_Function2 Function2;
+typedef struct s_Function11 Function11;
 
 struct s_Function1 {
 	int len, memlen;
@@ -17,6 +18,13 @@ struct s_Function2 {
 	V2 *pts;
 };
 
+struct s_Function11 {
+	int len, memlen;
+	V1 x0;
+	V1 dx;
+	V2 *mm;
+};
+
 
 void f1_init(Function1 *self, int memlen);
 void f1_resize(Function1 *self, int len);
@@ -25,6 +33,12 @@ V1 f1_eval_at(Function1 *self, V1 x);
 void f1_compile(Function1 *self, char *tex, int w, int h, V2 xrange, V2 yrange);
 void f1_append(Function1 *self, V1 y);
 V2 f1_minmax(Function1 *self);
+
+
+void f11_init(Function11 *self, int memlen);
+void f11_resize(Function11 *self, int len);
+void f11_fini(Function11 *self);
+
 
 void f2_init(Function2 *self, int memlen);
 void f2_resize(Function2 *self, int len);
@@ -68,6 +82,33 @@ void f1_resize(Function1 *self, int len)
 	}
 	self->len = len;
 }
+
+void f11_init(Function11 *self, int memlen)
+{
+	memset(self, 0, sizeof(Function11));
+	self->memlen = memlen;
+	self->mm = malloc(sizeof(V2) * self->memlen);
+	ASSERT(self->mm, "Out of Mem");
+}
+
+void f11_fini(Function11 *self)
+{
+	if(self->mm)
+		free(self->mm);
+	memset(self, 0, sizeof(Function11));
+}
+
+void f11_resize(Function11 *self, int len)
+{
+	if (len > self->memlen) {
+		self->mm = realloc(self->mm, sizeof(V2)*len);
+		ASSERT(self->mm, "Out of Mem");
+		self->memlen = len;
+	}
+	self->len = len;
+}
+
+
 
 void f2_init(Function2 *self, int memlen)
 {

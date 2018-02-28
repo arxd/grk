@@ -26,7 +26,7 @@ void td_fini(TradeData *self);
 void td_write(TradeData *self, const char *filename);
 void td_read(TradeData *self, const char *filename);
 TradeData* td_merge(TradeData *self, TradeData *other);
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth);
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth, int causal);
 
 #if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
 
@@ -64,7 +64,7 @@ void td_write(TradeData *self, const char *filename)
 	fclose(fout);
 }
 
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize)
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize, int causal)
 {
 	V1 t0 = self->data[0].t;
 	V1 tN = self->data[self->len-1].t;
@@ -86,6 +86,8 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 		V1 mass = 0.0;
 		V1 vol = 0.0;
 		for (int i=a; i < b; ++i) {
+			if (causal && self->data[i].t > t)
+				continue;
 			V1 factor = fabs(self->data[i].amt) * window_func(ktype, t - self->data[i].t, ksize);
 			mass += self->data[i].val*factor;
 			vol += factor;
