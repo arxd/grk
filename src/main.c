@@ -48,11 +48,11 @@ void gl_init(void)
 	//~ f1_window(&w_blackharris, W_BLACKHARRIS, 1024, 1.0, v2(-1.2, 1.2));
 	//~ f1_window(&w_gauss, W_APXGAUSS, 1024, 1.0, v2(-1.2, 1.2));
 	
-	td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0, 1);
+	//~ td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0, 1, 50*WEEKS);
 	
-	td_bin(&gtd, &avg1m, 60.0, W_BLACKHARRIS, 3600.0, 1);
+	td_bin(&gtd, &avg1m, 2*60.0, W_BLACKHARRIS, 10*60.0, 0, 50*WEEKS);
 
-	view_fit(&view, &gtdf0);
+	view_fit(&view, &avg1m);
 }
 
 
@@ -78,7 +78,7 @@ int gl_frame(void)
 	//~ f1_render(&w_blackharris, &view, rgb(0.0, 1.0, 0.0));
 	//~ f1_render(&w_gauss, &view, rgb(0.0, 0.0, 1.0));
 	
-	f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
+	//~ f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
 	f1_render(&avg1m, &view, rgb(0.8, 0.8, 0.0));
 	
 	
@@ -95,26 +95,18 @@ int gl_frame(void)
 			//~ thresh *= 5;
 		//~ }
 	} else if (view.vps.x > 60)
-	color = rgb(0.0, 0.0, 0.0);
+	
 	//~ grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
 	grid_time_render(&view,  rgb(1.0, 0.0, 0.0));
 
 	grid_vert_render(&view,  rgb(0.6, 0.5, 0.0));
 
-	
-	
-	//~ draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), angle, 3, (GLfloat[]){0.0, 0.0, 1.0, 1.0, 0.0, -1.0});
-	
-	//~ if (GW.m.hx >= 0)
-		//~ draw_line_strip(v2(mxy.x, 0.0), v2(1.0, view.vps.y*GW.h), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
+	color = rgb(1.0, 1.0, 1.0);
+		
+	if (GW.m.hx >= 0)
+		draw_line_strip(v2(mxy.x, view.ll.y), v2(1.0, (view.ur.y - view.ll.y)), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
 	
 
-	angle += 2;
-	
-	
-	
-	
-	
 	if (GW.m.btn) {
 		view.drag = v2sub(v2(GW.m.sx, GW.m.sy), v2(GW.m.sx0, GW.m.sy0));
 	} else if (view.drag.x || view.drag.y) {

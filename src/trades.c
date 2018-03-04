@@ -26,7 +26,7 @@ void td_fini(TradeData *self);
 void td_write(TradeData *self, const char *filename);
 void td_read(TradeData *self, const char *filename);
 TradeData* td_merge(TradeData *self, TradeData *other);
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth, int causal);
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth, int causal, V1 since);
 
 #if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
 
@@ -64,10 +64,11 @@ void td_write(TradeData *self, const char *filename)
 	fclose(fout);
 }
 
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize, int causal)
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize, int causal, V1 since)
 {
-	V1 t0 = self->data[0].t;
 	V1 tN = self->data[self->len-1].t;
+	V1 t0 = since? tN - since : self->data[0].t;
+		
 	INFO("From %f s by %f  (%d ... %d)", tN-t0, sample_rate,  self->len, (int)((tN-t0) / sample_rate));
 	
 	f1_init(func, (tN-t0) / sample_rate + 1);
@@ -94,8 +95,8 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 		}
 		if (vol) {
 			//~ INFO("v=%f  avg=%f", vol, mass/vol);
-			//f1_append(func, log(mass/vol)/log(2.0));
-			f1_append(func, mass/vol);
+			f1_append(func, 10.0*log(mass/vol)/log(1.1));
+			//~ f1_append(func, mass/vol);
 			
 		} else {
 			//~ INFO("v=%f  avg=NA", vol);

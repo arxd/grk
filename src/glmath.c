@@ -13,6 +13,8 @@ struct s_View {
 	V2 origin; // origin of this view in screen coordinates
 	V2 drag;  // A delta added to origin for dragging
 	V2 vps; // view per screen (unit/px)
+	V2 ll;
+	V2 ur;
 };
 extern View view;
 
@@ -96,6 +98,8 @@ Color hue(V1 hue)
 void view_drag_screen(View *self, V2 screen_dxy)
 {
 	self->drag = v2mul2(screen_dxy, self->vps);
+	self->ll = screen_to_view(self, v2(0.0, 0.0));
+	self->ur = screen_to_view(self, v2(GW.w , GW.h ));
 }
 
 void view_drag_stop(View *self)
@@ -120,6 +124,9 @@ void view_zoom_at(View *self, V2 xy_view, V2 zoom)
 	self->vps = v2mul2(self->vps, zoom);
 	V2 delta = v2sub(screen_to_view(self, screen), xy_view);
 	self->origin = v2add(self->origin, v2div2(delta, self->vps));
+	self->ll = screen_to_view(self, v2(0.0, 0.0));
+	self->ur = screen_to_view(self, v2(GW.w , GW.h ));
+
 }
 
 void view_fit(View *self, Function1 *func)
@@ -133,6 +140,9 @@ void view_fit(View *self, Function1 *func)
 	self->origin = v2(-xrange.x / xvps, -yrange.x / yvps);// 0.0);//mm.x/yvps);
 	self->vps = v2(xvps, yvps);
 	self->drag = v2(0.0, 0.0);
+	self->ll = screen_to_view(self, v2(0.0, 0.0));
+	self->ur = screen_to_view(self, v2(GW.w , GW.h ));
+
 }
 
 

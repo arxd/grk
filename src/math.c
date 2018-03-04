@@ -1,6 +1,10 @@
 #ifndef MATH_C
 #define MATH_C
 
+#define HOURS (3600.0)
+#define DAYS (24*HOURS)
+#define WEEKS (7*DAYS)
+
 typedef double V1;
 
 typedef union u_V2 V2;
