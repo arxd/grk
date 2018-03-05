@@ -20,6 +20,7 @@ Shader g_dfun_shader = {0};
 Texture gph0;
 TradeData gtd;
 Function1 gtdf0;
+FunctionRanged gtdf0r;
 
 Function1 w_rect, w_tri, w_hann, w_hamming, w_blackman, w_blackharris,w_gauss;
 
@@ -51,8 +52,13 @@ void gl_init(void)
 	//~ td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0, 1, 50*WEEKS);
 	
 	td_bin(&gtd, &avg1m, 2*60.0, W_BLACKHARRIS, 10*60.0, 0, 50*WEEKS);
-
 	view_fit(&view, &avg1m);
+
+	fr_init(&gtdf0r, 1024);
+	fr_eval(&gtdf0r, &avg1m, view.vps.x);
+	
+
+
 }
 
 
@@ -65,11 +71,12 @@ V1 angle = 0.0;
 
 int gl_frame(void)
 {
+	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
+	view_navigate(&view, GW.m.btn, 1.125);
+
 	glClear(GL_COLOR_BUFFER_BIT);
 	color = rgb(1.0, 0.8, 0.2);
-	glLineWidth(2.0);
-	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
-
+	glLineWidth(1.0);
 	//~ f1_render(&w_rect, &view, rgb(1.0, 1.0, 0.0));
 	//~ f1_render(&w_tri, &view, rgb(1.0, 0.0, 0.0));
 	//~ f1_render(&w_hamming, &view, rgb(1.0, 1.0, 1.0));
@@ -79,7 +86,8 @@ int gl_frame(void)
 	//~ f1_render(&w_gauss, &view, rgb(0.0, 0.0, 1.0));
 	
 	//~ f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
-	f1_render(&avg1m, &view, rgb(0.8, 0.8, 0.0));
+	//~ f1_render(&avg1m, &view, rgb(0.8, 0.8, 0.0));
+	fr_render(&gtdf0r, &view, rgb(0.3, 0.8, 0.0));
 	
 	
 	char *xfmt = "%f";
@@ -102,23 +110,11 @@ int gl_frame(void)
 	grid_vert_render(&view,  rgb(0.6, 0.5, 0.0));
 
 	color = rgb(1.0, 1.0, 1.0);
-		
+	
 	if (GW.m.hx >= 0)
-		draw_line_strip(v2(mxy.x, view.ll.y), v2(1.0, (view.ur.y - view.ll.y)), 0.0, 2, (GLfloat[]){0.0, -1.0, 0.0, 1.0});
+		draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), 0.0, 2, (GLfloat[]){mxy.x,view.ll.y, mxy.x, view.ur.y});
 	
-
-	if (GW.m.btn) {
-		view.drag = v2sub(v2(GW.m.sx, GW.m.sy), v2(GW.m.sx0, GW.m.sy0));
-	} else if (view.drag.x || view.drag.y) {
-		view.origin = v2add(view.origin, view.drag);
-		view.drag = v2(0.0, 0.0);
-	}
 	
-	if (GW.scroll != 0) {
-		V1 dir = GW.scroll < 0 ? 1.1 : 1.0/1.1;
-		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:1.0);
-		view_zoom_at(&view, mxy, z);
-	}
 
 	return !(GW.cmd & KCMD_ESCAPE);
 }

@@ -31,8 +31,7 @@ Color hsv(V1 h, V1 s, V1 v);
 Color hue(V1 hue);
 
 
-void view_drag(View *self, V2 screen_dxy);
-void view_drag_stop(View *self);
+void view_navigate(View *self, int cond, V1 zoom);
 void view_fit(View *self, Function1 *func);
 V2 unit_to_screen(View *self, V2 view_xy);
 V2 screen_to_view(View *self, V2 xy_screen);
@@ -47,6 +46,7 @@ void grid_vert_render(View *view, Color clr);
 
 void f1_render_init(void);
 void f1_render(Function1 *self, View *view, Color color);
+void fr_render(FunctionRanged *self, View *view, Color color);
 
 //~ void draw_color(float r, float g, float b, float a);
 //~ void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
@@ -95,17 +95,23 @@ Color hue(V1 hue)
 }
 
 
-void view_drag_screen(View *self, V2 screen_dxy)
-{
-	self->drag = v2mul2(screen_dxy, self->vps);
-	self->ll = screen_to_view(self, v2(0.0, 0.0));
-	self->ur = screen_to_view(self, v2(GW.w , GW.h ));
-}
 
-void view_drag_stop(View *self)
+void view_navigate(View *self, int cond, V1 zoom)
 {
-	self->origin = v2add(self->origin, self->drag);
-	self->drag = v2(0.0, 0.0);
+	V2 mxy = screen_to_view(self, v2(GW.m.hx, GW.m.hy));
+	if (cond) {
+		self->drag = v2sub(v2(GW.m.sx, GW.m.sy), v2(GW.m.sx0, GW.m.sy0));
+		self->ll = screen_to_view(self, v2(0.0, 0.0));
+		self->ur = screen_to_view(self, v2(GW.w , GW.h ));
+	} else if (view.drag.x || view.drag.y) {
+		self->origin = v2add(self->origin, self->drag);
+		self->drag = v2(0.0, 0.0);
+	}
+	if (GW.scroll != 0) {
+		V1 dir = GW.scroll < 0 ? zoom : 1.0/zoom;
+		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:1.0);
+		view_zoom_at(self, mxy, z);
+	}
 }
 
 V2 view_to_screen(View *self, V2 xy_view)
@@ -162,6 +168,41 @@ void f1_render_init(void)
 	on_exit(shader_on_exit, &g_f1_shader);
 	tex_set(&g_f1_texture, 0);
 }
+
+void fr_render(FunctionRanged *self, View *view, Color color)
+{
+	char *tex = alloca(128*128);
+	ASSERT(view->vps.x == self->dx, "Resolutions must match %f  %f", view->vps.x, self->dx);
+	
+	int64_t i0 = floor(view->ll.x / self->dx);
+	uint16_t ymin = 0xFFFE;
+	uint16_t ymax = 0xFFFF;
+	V2 y;
+	V1 y0 = 0.0 - (view->origin.y + view->drag.y) * view->vps.y;
+	
+	for (int64_t i = i0; i < (i0 + GW.w) && i < (self->i0 + self->len); ++i) {
+		if ( i < self->i0)
+			continue;
+		y = v2div(v2sub(self->mm[i - self->i0], v2(y0, y0)), view->vps.y);
+		if (!(y.y < 0.0 || y.x >= GW.h)) {
+			ymin = (y.x < 0.0)? 0 : nearbyint(y.x);
+			ymax = (y.y >= GW.h)? GW.h-1 : nearbyint(y.y);
+		}
+		uint16_t ym = (ymin < ymax)? ymin: ymax;
+		uint16_t yx = (ymin > ymax)? ymin: ((ymin==ymax)? ymin+1: ymax);
+		tex[i*4+0] = (ym>>8)&0xFF;
+		tex[i*4+1] = ym&0xFF;
+		tex[i*4+2] = (yx>>8)&0xFF;
+		tex[i*4+3] = yx&0xFF;	
+	}
+	
+	glUseProgram(g_f1_shader.id);
+	tex_set(&g_f1_texture, tex);
+	glUniform1i(g_f1_shader.args[1], 0); // uFramebuffer
+	glUniform4fv(g_f1_shader.args[2], 1, color.rgba); // uColor
+	geom_send(GL_TRIANGLE_STRIP, g_f1_shader.args[0], 4, GEOM_FSRECT);
+}
+
 
 void f1_render(Function1 *self, View *view, Color color)
 {

@@ -1,10 +1,14 @@
 #ifndef FUNCTION_C
 #define FUNCTION_C
 
+#include <stdint.h>
 #include "math.c"
+
 typedef struct s_Function1 Function1;
 typedef struct s_Function2 Function2;
 typedef struct s_Function11 Function11;
+typedef struct s_FunctionRanged FunctionRanged;
+
 
 struct s_Function1 {
 	int len, memlen;
@@ -18,9 +22,9 @@ struct s_Function2 {
 	V2 *pts;
 };
 
-struct s_Function11 {
+struct s_FunctionRanged {
 	int len, memlen;
-	V1 x0;
+	int64_t i0;
 	V1 dx;
 	V2 *mm;
 };
@@ -35,9 +39,10 @@ void f1_append(Function1 *self, V1 y);
 V2 f1_minmax(Function1 *self);
 
 
-void f11_init(Function11 *self, int memlen);
-void f11_resize(Function11 *self, int len);
-void f11_fini(Function11 *self);
+void fr_init(FunctionRanged *self, int memlen);
+void fr_resize(FunctionRanged *self, int len);
+void fr_fini(FunctionRanged *self);
+void fr_eval(FunctionRanged *self, Function1 *func, V1 dx);
 
 
 void f2_init(Function2 *self, int memlen);
@@ -53,7 +58,6 @@ void f1_window(Function1 *self, KernType type, int npts, V1 kw, V2 xrange);
 #if __INCLUDE_LEVEL__ == 0
 
 #include <string.h>
-#include <stdint.h>
 #include <math.h>
 #include <malloc.h>
 #include "logging.c"
@@ -83,22 +87,22 @@ void f1_resize(Function1 *self, int len)
 	self->len = len;
 }
 
-void f11_init(Function11 *self, int memlen)
+void fr_init(FunctionRanged *self, int memlen)
 {
-	memset(self, 0, sizeof(Function11));
+	memset(self, 0, sizeof(FunctionRanged));
 	self->memlen = memlen;
 	self->mm = malloc(sizeof(V2) * self->memlen);
 	ASSERT(self->mm, "Out of Mem");
 }
 
-void f11_fini(Function11 *self)
+void fr_fini(FunctionRanged *self)
 {
 	if(self->mm)
 		free(self->mm);
-	memset(self, 0, sizeof(Function11));
+	memset(self, 0, sizeof(FunctionRanged));
 }
 
-void f11_resize(Function11 *self, int len)
+void fr_resize(FunctionRanged *self, int len)
 {
 	if (len > self->memlen) {
 		self->mm = realloc(self->mm, sizeof(V2)*len);
@@ -106,6 +110,28 @@ void f11_resize(Function11 *self, int len)
 		self->memlen = len;
 	}
 	self->len = len;
+}
+
+void fr_eval(FunctionRanged *self, Function1 *func, V1 dx)
+{
+	self->dx = dx;
+	self->i0 =  floor(func->x0 / dx);
+	fr_resize(self,  floor((func->x0 + func->len * func->dx) / dx) - self->i0 + 1);
+
+	int64_t i=-1, j=0;
+	for (j=0; j < func->len; ++j) {
+		V1 x = func->x0 + j * func->dx;
+		if (x >= (self->i0 + i + 1) * dx) {
+			++i;
+			ASSERT(i < self->len, "too big %d > %d", i, self->len);
+			self->mm[i].x = self->mm[i].y = func->ys[j];
+		}
+		
+		if (func->ys[j] < self->mm[i].x)
+			self->mm[i].x = func->ys[j];
+		if (func->ys[j] > self->mm[i].y)
+			self->mm[i].y = func->ys[j];
+	}
 }
 
 
