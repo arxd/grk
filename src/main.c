@@ -68,15 +68,26 @@ void gl_init(void)
 V1 angle = 0.0;
 
 
+V1 prev_vps = 0;
 
 int gl_frame(void)
 {
+	static int linear = 1;
 	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 	view_navigate(&view, GW.m.btn, 1.125);
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	color = rgb(1.0, 0.8, 0.2);
 	glLineWidth(1.0);
+	
+	if (view.vps.x != prev_vps) {
+		if (view.vps.x < avg1m.dx)
+			view_zoom_at(&view, screen_to_view(&view, v2(GW.m.hx, GW.m.hy)), v2(avg1m.dx, view.vps.y));
+		fr_eval(&gtdf0r, &avg1m, view.vps.x);
+		prev_vps = view.vps.x;
+		
+	}
+	
 	//~ f1_render(&w_rect, &view, rgb(1.0, 1.0, 0.0));
 	//~ f1_render(&w_tri, &view, rgb(1.0, 0.0, 0.0));
 	//~ f1_render(&w_hamming, &view, rgb(1.0, 1.0, 1.0));
@@ -87,8 +98,11 @@ int gl_frame(void)
 	
 	//~ f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
 	//~ f1_render(&avg1m, &view, rgb(0.8, 0.8, 0.0));
-	fr_render(&gtdf0r, &view, rgb(0.3, 0.8, 0.0));
+	fr_render(&gtdf0r, &view, rgb(0.3, 0.8, 0.0), linear);
 	
+	switch (key_pop()) {
+		case 'l': linear = !linear; break;
+	}
 	
 	char *xfmt = "%f";
 	char *yfmt = "%f";

@@ -118,13 +118,20 @@ void fr_eval(FunctionRanged *self, Function1 *func, V1 dx)
 	self->i0 =  floor(func->x0 / dx);
 	fr_resize(self,  floor((func->x0 + func->len * func->dx) / dx) - self->i0 + 1);
 
-	int64_t i=-1, j=0;
+	int64_t i=0, j=0;
+	self->mm[0].x = self->mm[0].y = func->ys[0];
 	for (j=0; j < func->len; ++j) {
 		V1 x = func->x0 + j * func->dx;
 		if (x >= (self->i0 + i + 1) * dx) {
+			ASSERT(j > 0, "J not > 0! %d", j);
+			V1 dy  = /*(x/dx + self->i0 + i)*/0.5*(func->ys[j] - func->ys[j-1]) + func->ys[j-1];
+			if (dy < self->mm[i].x)
+				self->mm[i].x = dy;
+			if (dy > self->mm[i].y)
+				self->mm[i].y = dy;
 			++i;
 			ASSERT(i < self->len, "too big %d > %d", i, self->len);
-			self->mm[i].x = self->mm[i].y = func->ys[j];
+			self->mm[i].x = self->mm[i].y = dy;
 		}
 		
 		if (func->ys[j] < self->mm[i].x)

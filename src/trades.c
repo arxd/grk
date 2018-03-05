@@ -95,8 +95,8 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 		}
 		if (vol) {
 			//~ INFO("v=%f  avg=%f", vol, mass/vol);
-			f1_append(func, 10.0*log(mass/vol)/log(1.1));
-			//~ f1_append(func, mass/vol);
+			//~ f1_append(func, 10.0*log(mass/vol)/log(1.1));
+			f1_append(func, mass/vol);
 			
 		} else {
 			//~ INFO("v=%f  avg=NA", vol);

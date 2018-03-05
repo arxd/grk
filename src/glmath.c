@@ -36,8 +36,6 @@ void view_fit(View *self, Function1 *func);
 V2 unit_to_screen(View *self, V2 view_xy);
 V2 screen_to_view(View *self, V2 xy_screen);
 void view_zoom_at(View *self, V2 xy_view, V2 zoom);
-V2 view_LL(View *self);
-V2 view_UR(View *self);
 
 void grid_render_init(void);
 void grid_render(View *view,  const char* fmtx, const char* fmty, V2 major, V2 minor, Color color);
@@ -46,7 +44,7 @@ void grid_vert_render(View *view, Color clr);
 
 void f1_render_init(void);
 void f1_render(Function1 *self, View *view, Color color);
-void fr_render(FunctionRanged *self, View *view, Color color);
+void fr_render(FunctionRanged *self, View *view, Color color, int linear);
 
 //~ void draw_color(float r, float g, float b, float a);
 //~ void draw_line_strip(GLfloat xy[2], GLfloat scale[2], GLfloat angle, int npts, GLfloat *pts);
@@ -98,7 +96,6 @@ Color hue(V1 hue)
 
 void view_navigate(View *self, int cond, V1 zoom)
 {
-	V2 mxy = screen_to_view(self, v2(GW.m.hx, GW.m.hy));
 	if (cond) {
 		self->drag = v2sub(v2(GW.m.sx, GW.m.sy), v2(GW.m.sx0, GW.m.sy0));
 		self->ll = screen_to_view(self, v2(0.0, 0.0));
@@ -110,7 +107,7 @@ void view_navigate(View *self, int cond, V1 zoom)
 	if (GW.scroll != 0) {
 		V1 dir = GW.scroll < 0 ? zoom : 1.0/zoom;
 		V2 z = v2(GW.cmd&KCMD_LEFT_SHIFT?1.0:dir, GW.cmd&KCMD_LEFT_SHIFT?dir:1.0);
-		view_zoom_at(self, mxy, z);
+		view_zoom_at(self, screen_to_view(self, v2(GW.m.hx, GW.m.hy)), v2mul2(self->vps, z ));
 	}
 }
 
@@ -127,7 +124,7 @@ V2 screen_to_view(View *self, V2 xy_screen)
 void view_zoom_at(View *self, V2 xy_view, V2 zoom)
 {
 	V2 screen = view_to_screen(self, xy_view);
-	self->vps = v2mul2(self->vps, zoom);
+	self->vps = zoom;
 	V2 delta = v2sub(screen_to_view(self, screen), xy_view);
 	self->origin = v2add(self->origin, v2div2(delta, self->vps));
 	self->ll = screen_to_view(self, v2(0.0, 0.0));
@@ -168,32 +165,43 @@ void f1_render_init(void)
 	on_exit(shader_on_exit, &g_f1_shader);
 	tex_set(&g_f1_texture, 0);
 }
+void tset(char *tex, int i, V2 y)
+{
+	uint16_t ymin = 0xFFFE;
+	uint16_t ymax = 0xFFFF;
+	if (!(y.y < 0.0 || y.x >= GW.h)) {
+		ymin = (y.x < 0.0)? 0 : nearbyint(y.x);
+		ymax = (y.y >= GW.h)? GW.h-1 : nearbyint(y.y);
+	}
+	uint16_t ym = (ymin < ymax)? ymin: ymax;
+	uint16_t yx = (ymin > ymax)? ymin: ((ymin==ymax)? ymin+1: ymax);
+	tex[i*4+0] = (ym>>8)&0xFF;
+	tex[i*4+1] = ym&0xFF;
+	tex[i*4+2] = (yx>>8)&0xFF;
+	tex[i*4+3] = yx&0xFF;	
+	
+}
 
-void fr_render(FunctionRanged *self, View *view, Color color)
+void fr_render(FunctionRanged *self, View *view, Color color, int linear)
 {
 	char *tex = alloca(128*128);
 	ASSERT(view->vps.x == self->dx, "Resolutions must match %f  %f", view->vps.x, self->dx);
 	
 	int64_t i0 = floor(view->ll.x / self->dx);
-	uint16_t ymin = 0xFFFE;
-	uint16_t ymax = 0xFFFF;
 	V2 y;
 	V1 y0 = 0.0 - (view->origin.y + view->drag.y) * view->vps.y;
-	
-	for (int64_t i = i0; i < (i0 + GW.w) && i < (self->i0 + self->len); ++i) {
-		if ( i < self->i0)
-			continue;
-		y = v2div(v2sub(self->mm[i - self->i0], v2(y0, y0)), view->vps.y);
-		if (!(y.y < 0.0 || y.x >= GW.h)) {
-			ymin = (y.x < 0.0)? 0 : nearbyint(y.x);
-			ymax = (y.y >= GW.h)? GW.h-1 : nearbyint(y.y);
+	V2 prev;
+	static const V1 log11 = 10.0/log(1.1);
+	for (int64_t i = i0; i < i0 + GW.w; ++i) {
+		if ( i >= self->i0 && i < self->i0 + self->len) {
+			y = self->mm[i - self->i0];
+			if (!linear)
+				y = v2(log11*log(y.x), log11*log(y.y));
+			y = v2div(v2sub(y, v2(y0, y0)), view->vps.y);
+		} else {
+			y = v2(1e100, 1e100);
 		}
-		uint16_t ym = (ymin < ymax)? ymin: ymax;
-		uint16_t yx = (ymin > ymax)? ymin: ((ymin==ymax)? ymin+1: ymax);
-		tex[i*4+0] = (ym>>8)&0xFF;
-		tex[i*4+1] = ym&0xFF;
-		tex[i*4+2] = (yx>>8)&0xFF;
-		tex[i*4+3] = yx&0xFF;	
+		tset(tex, i-i0, y);
 	}
 	
 	glUseProgram(g_f1_shader.id);
