@@ -24,6 +24,7 @@ FunctionRanged gtdf0r;
 
 Function1 w_rect, w_tri, w_hann, w_hamming, w_blackman, w_blackharris,w_gauss;
 
+static int linear = 1;
 
 
 void gl_init(void)
@@ -41,21 +42,11 @@ void gl_init(void)
 	f1_render_init();
 	
 	
-	//~ f1_window(&w_rect, W_RECTANGLE, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_tri, W_TRIANGLE, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_hann, W_HANN, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_hamming, W_HAMMING, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_blackman, W_BLACKMAN, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_blackharris, W_BLACKHARRIS, 1024, 1.0, v2(-1.2, 1.2));
-	//~ f1_window(&w_gauss, W_APXGAUSS, 1024, 1.0, v2(-1.2, 1.2));
-	
-	//~ td_bin(&gtd, &gtdf0, 60.0, W_BLACKHARRIS, 60.0, 1, 50*WEEKS);
-	
 	td_bin(&gtd, &avg1m, 2*60.0, W_BLACKHARRIS, 10*60.0, 0, 50*WEEKS);
-	view_fit(&view, &avg1m);
+	view_fit(&view, &avg1m, linear);
 
 	fr_init(&gtdf0r, 1024);
-	fr_eval(&gtdf0r, &avg1m, view.vps.x);
+	fr_compile(&gtdf0r, &avg1m, view.vps.x);
 	
 
 
@@ -72,7 +63,6 @@ V1 prev_vps = 0;
 
 int gl_frame(void)
 {
-	static int linear = 1;
 	V2 mxy = screen_to_view(&view, v2(GW.m.hx, GW.m.hy));
 	view_navigate(&view, GW.m.btn, 1.125);
 
@@ -83,25 +73,18 @@ int gl_frame(void)
 	if (view.vps.x != prev_vps) {
 		if (view.vps.x < avg1m.dx)
 			view_zoom_at(&view, screen_to_view(&view, v2(GW.m.hx, GW.m.hy)), v2(avg1m.dx, view.vps.y));
-		fr_eval(&gtdf0r, &avg1m, view.vps.x);
+		fr_compile(&gtdf0r, &avg1m, view.vps.x);
 		prev_vps = view.vps.x;
 		
 	}
 	
-	//~ f1_render(&w_rect, &view, rgb(1.0, 1.0, 0.0));
-	//~ f1_render(&w_tri, &view, rgb(1.0, 0.0, 0.0));
-	//~ f1_render(&w_hamming, &view, rgb(1.0, 1.0, 1.0));
-	//~ f1_render(&w_hann, &view, rgb(1.0, 0.0, 1.0));
-	//~ f1_render(&w_blackman, &view, rgb(0.0, 1.0, 1.0));
-	//~ f1_render(&w_blackharris, &view, rgb(0.0, 1.0, 0.0));
-	//~ f1_render(&w_gauss, &view, rgb(0.0, 0.0, 1.0));
-	
-	//~ f1_render(&gtdf0, &view, rgb(0.8, 0.8, 1.0));
-	//~ f1_render(&avg1m, &view, rgb(0.8, 0.8, 0.0));
 	fr_render(&gtdf0r, &view, rgb(0.3, 0.8, 0.0), linear);
 	
 	switch (key_pop()) {
-		case 'l': linear = !linear; break;
+		case 'l':
+			linear = !linear; 
+			view_fit(&view, &avg1m, linear);
+			break;
 	}
 	
 	char *xfmt = "%f";
@@ -116,7 +99,7 @@ int gl_frame(void)
 			//~ xmin.x *= 5;
 			//~ thresh *= 5;
 		//~ }
-	} else if (view.vps.x > 60)
+	}
 	
 	//~ grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
 	grid_time_render(&view,  rgb(1.0, 0.0, 0.0));
@@ -125,8 +108,13 @@ int gl_frame(void)
 
 	color = rgb(1.0, 1.0, 1.0);
 	
-	if (GW.m.hx >= 0)
+	if (GW.m.hx >= 0) {
+		glLineWidth(1.0);
 		draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), 0.0, 2, (GLfloat[]){mxy.x,view.ll.y, mxy.x, view.ur.y});
+		INFO("%s", v2str(fr_eval(&gtdf0r, mxy.y)));
+		
+		
+	}
 	
 	
 

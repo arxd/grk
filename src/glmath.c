@@ -32,7 +32,7 @@ Color hue(V1 hue);
 
 
 void view_navigate(View *self, int cond, V1 zoom);
-void view_fit(View *self, Function1 *func);
+void view_fit(View *self, Function1 *func, int linear);
 V2 unit_to_screen(View *self, V2 view_xy);
 V2 screen_to_view(View *self, V2 xy_screen);
 void view_zoom_at(View *self, V2 xy_view, V2 zoom);
@@ -132,11 +132,13 @@ void view_zoom_at(View *self, V2 xy_view, V2 zoom)
 
 }
 
-void view_fit(View *self, Function1 *func)
+void view_fit(View *self, Function1 *func, int linear)
 {
 	V2 xrange = v2(func->x0, func->len*func->dx);
 	V2 yrange = f1_minmax(func);
-	
+	V1 log11 = 10.0/log(1.1);
+	if (!linear)
+		yrange = v2(log11*log(yrange.x), log11*log(yrange.y));
 	V1 yvps = (yrange.y - yrange.x) / GW.h;
 	V1 xvps = (xrange.y - xrange.x) / GW.w;
 	INFO("view_fit   xrange (%f, %f) %f   yrange(%f, %f) %f", xrange.x, xrange.y, xvps, yrange.x, yrange.y, yvps);

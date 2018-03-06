@@ -42,8 +42,8 @@ V2 f1_minmax(Function1 *self);
 void fr_init(FunctionRanged *self, int memlen);
 void fr_resize(FunctionRanged *self, int len);
 void fr_fini(FunctionRanged *self);
-void fr_eval(FunctionRanged *self, Function1 *func, V1 dx);
-
+void fr_compile(FunctionRanged *self, Function1 *func, V1 dx);
+V2 fr_eval(FunctionRanged *self, V1 x);
 
 void f2_init(Function2 *self, int memlen);
 void f2_resize(Function2 *self, int len);
@@ -112,7 +112,15 @@ void fr_resize(FunctionRanged *self, int len)
 	self->len = len;
 }
 
-void fr_eval(FunctionRanged *self, Function1 *func, V1 dx)
+V2 fr_eval(FunctionRanged *self, V1 x)
+{
+	int64_t i = floor(x / self->dx);
+	if (i < self->i0 || i >= self->i0 + i)
+		return v2(0.0, 0.0);
+	return self->mm[i - self->i0];
+}
+
+void fr_compile(FunctionRanged *self, Function1 *func, V1 dx)
 {
 	self->dx = dx;
 	self->i0 =  floor(func->x0 / dx);
