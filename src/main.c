@@ -47,9 +47,6 @@ void gl_init(void)
 
 	fr_init(&gtdf0r, 1024);
 	fr_compile(&gtdf0r, &avg1m, view.vps.x);
-	
-
-
 }
 
 
