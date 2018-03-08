@@ -26,7 +26,7 @@ void td_fini(TradeData *self);
 void td_write(TradeData *self, const char *filename);
 void td_read(TradeData *self, const char *filename);
 TradeData* td_merge(TradeData *self, TradeData *other);
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth, int causal, V1 since);
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 kwidth, int causal, V1 t0, V1 tN);
 
 #if __INCLUDE_LEVEL__ == 0 || defined(PIXIE_NOLIB)
 
@@ -64,21 +64,22 @@ void td_write(TradeData *self, const char *filename)
 	fclose(fout);
 }
 
-void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize, int causal, V1 since)
+void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1 ksize, int causal, V1 t0, V1 tN)
 {
-	V1 tN = self->data[self->len-1].t;
-	V1 t0 = since? tN - since : self->data[0].t;
-		
-	INFO("From %f s by %f  (%d ... %d)", tN-t0, sample_rate,  self->len, (int)((tN-t0) / sample_rate));
+	//~ V1 tN = self->data[self->len-1].t;
+	//~ V1 t0 = since? tN - since : self->data[0].t;
+	int len = (tN-t0) / sample_rate;
+	INFO("%f - %f = %f (%f) %d", tN, t0, tN-t0, sample_rate, len);
 	
-	f1_init(func, (tN-t0) / sample_rate + 1);
-	func->x0 = 0.0;
+	f1_init(func, len + 1);
+	func->x0 = t0-tN;
 	func->dx = sample_rate;
+	INFO("From %.1f .. %.1f s by %f  (%d ... %d)", t0/WEEKS, tN/WEEKS, func->dx,  self->len, len + 1);
 	
 	V1 t = t0;
 	int a = 0, b;
 	while (t <= tN) {
-		while (self->data[a].t < t - ksize)
+		while (a < self->len && self->data[a].t < t - ksize)
 			a++;
 		b = a;
 		while (b < self->len && self->data[b].t < t + ksize) {
@@ -100,7 +101,8 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 			
 		} else {
 			//~ INFO("v=%f  avg=NA", vol);
-			f1_append(func, func->ys[func->len-1]);
+			
+			f1_append(func, func->len ? func->ys[func->len-1] : self->data[0].val);
 		}
 		t += sample_rate;
 	}
@@ -180,12 +182,20 @@ TradeData* td_merge(TradeData *self, TradeData *other)
 int main(int argc, char *argv[])
 {
 
-	ASSERT(argc >= 3, "Usage: ./trades (update|show|merge) OUTFILE.bin [INFILE.bin]");
+	ASSERT(argc >= 3, "Usage: ./trades (update|show|merge|last) OUTFILE.bin [INFILE.bin]");
 
 	TradeData t0;
 	td_init(&t0);
 	td_read(&t0, argv[2]);
 	
+	if (argv[1][0] == 'l') {
+		printf("%llu\n", t0.last);
+		return 0;
+	} else if (argv[1][0] == 's') {
+		printf("%llu trades\n", t0.len);
+		return 0;
+	}
+
 	TradeData t1;
 	td_init(&t1);
 	td_read(&t1, argv[3]);

@@ -8,7 +8,7 @@ typedef struct s_Function1 Function1;
 typedef struct s_Function2 Function2;
 typedef struct s_Function11 Function11;
 typedef struct s_FunctionRanged FunctionRanged;
-
+typedef V1 MapFunc(V1);
 
 struct s_Function1 {
 	int len, memlen;
@@ -37,6 +37,7 @@ V1 f1_eval_at(Function1 *self, V1 x);
 void f1_compile(Function1 *self, char *tex, int w, int h, V2 xrange, V2 yrange);
 void f1_append(Function1 *self, V1 y);
 V2 f1_minmax(Function1 *self);
+void f1_map(Function1 *self, MapFunc *func);
 
 
 void fr_init(FunctionRanged *self, int memlen);
@@ -194,6 +195,13 @@ V1 f1_eval_at(Function1 *self, V1 x)
 	double b = (i < 0)? self->ys[0]: ((i >= self->len)? self->ys[self->len-1]: self->ys[i]);
 	
 	return (b-a)*dt + a;
+}
+
+void f1_map(Function1 *self, MapFunc *func)
+{
+	int i;
+	for (int i=0; i < self->len; ++i)
+		self->ys[i] = func(self->ys[i]);
 }
 
 V2 f1_minmax(Function1 *self)

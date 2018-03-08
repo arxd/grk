@@ -176,7 +176,7 @@ void framebuffer_on_exit(int status, void *arg);
  */
 
 void gl_error_check(void);
-double time(void);
+double rtime(void);
 char key_pop(void);
 
 /** ========== Drawing =============
@@ -388,7 +388,7 @@ void framebuffer_on_exit(int status, void *arg)
 
 
 
-double time(void)
+double rtime(void)
 {
 	return glfwGetTime ();
 }

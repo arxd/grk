@@ -9,6 +9,7 @@ import urllib.parse
 import math
 from datetime import datetime
 import traceback
+import subprocess
 
 class Kracken():
 	def __init__(self):
@@ -139,7 +140,7 @@ class Trades():
 				resp = k.call('Trades', pair = self.pair, since=self.last)
 				self.merge(Trades('', '', int(resp['last']), [(t[2], float(t[0]), float(t[1])*(-1.0 if t[3]=='s' else 1.0)) for t in resp[self.pair]] ))
 				tafter = time.time()
-				tsleep = 4.1-(tafter-tprev)
+				tsleep = 5.1-(tafter-tprev)
 				if tsleep > 0.0:
 					time.sleep(tsleep)
 				tprev = tafter
@@ -150,28 +151,46 @@ class Trades():
 		except KeyboardInterrupt:
 			print("Force Stop")
 			self.write()
+			return
 		except StopIteration:
 			print("Up to date")
 			self.write()
+			return
 		except ConnectionError:
 			print("Try again in 15 seconds...")
 			self.write()
 			time.sleep(15.0)
-			self.update()
 		except:
+			print("Uh oh....")
+			self.write()
 			raise
+		self.update()
 
 if __name__ == '__main__':
-	t1 = Trades(sys.argv[1])
-	if sys.argv[2] == 'update':
-		#~ print("START FROM %d"%t1.last)
-		#~ t2 = Trades('XXBTZUSD_2.bin', 'XXBTZUSD')
-		#~ t2.last = 1511295000263137498
-		t1.update()
-		
-	else:
-		
-		print("%.8f : (%.1f) %s"%(t1.price(-1), t1.amount(-1), t1.time(-1).isoformat() ))
-		
-		
+	#t1 = Trades(sys.argv[1])
 	
+	def do_update(pair, filename, last=None):
+		if last == None:
+			proc = subprocess.Popen(['build/merge', 'last', filename], stdout=subprocess.PIPE)
+			a,b = proc.communicate()
+			last = int(a)
+
+		print("UPDATE %s from %d"%(pair,last))
+		
+		t = Trades("", pair, last)
+		t.filename = '/tmp/ticker.bin'
+		t.update()
+		proc = subprocess.Popen(['build/merge', 'merge', filename, '/tmp/ticker.bin'])
+		proc.wait()
+	
+	
+	if sys.argv[1] == 'update':
+		pair = sys.argv[2][:8]
+		do_update(pair, sys.argv[2], None if len(sys.argv) == 3 else int(sys.argv[3]))
+		
+	elif sys.argv[1] == 'update_all':
+		for f in os.listdir('.'):
+			if len(f) != 12 or not f.endswith('.bin'):
+				continue
+			do_update(f[:8], f)
+
