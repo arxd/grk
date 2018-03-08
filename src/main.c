@@ -54,6 +54,7 @@ void gl_init(void)
 		INFO("Range %d: %f", i, view.vps.x);
 		fr_init(tdat_r+i, 1024);
 		fr_compile(tdat_r+i, tdat+i, view.vps.x);
+		tdat_r[i].yoff = 0.0;
 	}
 	min_dx = tdat[0].dx;
 
@@ -98,12 +99,11 @@ int gl_frame(void)
 	for (int i = 0; i < g_nfuncs; ++i)
 		fr_render(tdat_r+i, &view, COLORS[i], 1);
 	
-	//~ switch (key_pop()) {
-		//~ case 'l':
-			//~ linear = !linear; 
-			//~ view_fit(&view, tdat, 1);
-			//~ break;
-	//~ }
+	switch (key_pop()) {
+		case 'l':
+			tdat_r[0].yoff += 1.0;
+			break;
+	}
 	
 	char *xfmt = "%f";
 	char *yfmt = "%f";
@@ -120,7 +120,7 @@ int gl_frame(void)
 	}
 	
 	//~ grid_render(&view, xfmt, yfmt, xmaj, xmin, rgb(1.0, 0.0, 0.0));
-	grid_time_render(&view,  rgb(1.0, 0.0, 0.0));
+	grid_time_render(&view,  rgb(0.4, 0.4, 0.4));
 
 	grid_vert_render(&view,  rgb(0.6, 0.5, 0.0));
 
@@ -131,10 +131,10 @@ int gl_frame(void)
 		draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), 0.0, 2, (GLfloat[]){mxy.x,view.ll.y, mxy.x, view.ur.y});
 		//~ INFO("%f", mxy.x);
 		for (int i=0; i < g_nfuncs; ++i ) {
-			V1 y0 = f1_eval_at(tdat+i, mxy.x);
-			V1 f(V1 y)  {return y - y0;}
-			f1_map(tdat+i, f);
-			fr_compile(tdat_r+i, tdat+i, view.vps.x);
+			tdat_r[i].yoff = f1_eval_at(tdat+i, mxy.x);
+			//~ V1 f(V1 y)  {return y - y0;}
+			//~ f1_map(tdat+i, f);
+			//~ fr_compile(tdat_r+i, tdat+i, view.vps.x);
 		}
 		
 		
@@ -160,7 +160,7 @@ int main_init(int argc, char *argv[])
 		INFO("LOAD %s", argv[i+2]);
 		td_init(&td);
 		td_read(&td, argv[i+2]);
-		td_bin(&td, tdat+i, 2*60.0, W_RECTANGLE , 10*60.0, 0, n - weeks*WEEKS, n-3600*6.0);//W_BLACKHARRIS
+		td_bin(&td, tdat+i, 2*60.0, W_RECTANGLE , 10*60.0, 0, n - weeks*WEEKS, n - 3600*0.0);//W_BLACKHARRIS
 		td_fini(&td);
 	}
 	

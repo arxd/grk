@@ -26,6 +26,7 @@ struct s_FunctionRanged {
 	int len, memlen;
 	int64_t i0;
 	V1 dx;
+	V1 yoff;
 	V2 *mm;
 };
 

@@ -177,20 +177,37 @@ if __name__ == '__main__':
 
 		print("UPDATE %s from %d"%(pair,last))
 		
-		t = Trades("", pair, last)
-		t.filename = '/tmp/ticker.bin'
+		t = Trades("", pair=pair, last=last, data=[])
+		t.filename = '/tmp/ticker%s.bin'%pair
 		t.update()
-		proc = subprocess.Popen(['build/merge', 'merge', filename, '/tmp/ticker.bin'])
+		print("DONE UPDATING")
+		t.write()
+		proc = subprocess.Popen(['build/merge', 'merge', filename, t.filename])
 		proc.wait()
 	
 	
 	if sys.argv[1] == 'update':
-		pair = sys.argv[2][:8]
+		pair = sys.argv[2][:sys.argv[2].find('.')]
 		do_update(pair, sys.argv[2], None if len(sys.argv) == 3 else int(sys.argv[3]))
 		
 	elif sys.argv[1] == 'update_all':
 		for f in os.listdir('.'):
-			if len(f) != 12 or not f.endswith('.bin'):
+			if not f.endswith('.bin'):
 				continue
-			do_update(f[:8], f)
+			do_update(f[:f.find('.')], f)
+			time.sleep(5.0)
 
+	elif sys.argv[1] == 'pairs':
+		pairs = Kracken().call('AssetPairs')
+		for p,v in pairs.items():
+			
+			print(p + " : %r"%v)
+			print("---------")
+			
+	elif sys.argv[1] == 'show':
+		pair = sys.argv[2]
+		time = sys.argv[3]
+		print("Get %s from %s"%(pair, time))
+		data = Kracken().call('Trades', pair = pair, since=time)
+		for t in data[pair]:
+			print ("%f: %f  %f"%(t[2], float(t[0]), float(t[1])*(-1.0 if t[3]=='s' else 1.0)))

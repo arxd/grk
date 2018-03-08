@@ -177,7 +177,7 @@ TradeData* td_merge(TradeData *self, TradeData *other)
 
 
 #ifdef INCLUDE_MAIN
-
+#include <time.h>
 
 int main(int argc, char *argv[])
 {
@@ -194,8 +194,33 @@ int main(int argc, char *argv[])
 	} else if (argv[1][0] == 's') {
 		printf("%llu trades\n", t0.len);
 		return 0;
+	} else if (argv[1][0] == 'd') {
+		int dp = strtol(argv[3], 0, 10);
+		printf("Drop %d\n", dp);
+		for (int i=dp; i < t0.len; ++i)
+			t0.data[i-dp] = t0.data[i];
+		t0.len -= dp;
+		td_write(&t0, argv[2]);
+		return 0;
+	} else if (argv[1][0] == 'c') {
+		double days = strtod(argv[3], 0);
+		double now = time(0);
+		
+		INFO("Chop %.1f days before %.1f", days, now);
+		now = now-days*24.0*3600.0;
+		int i;
+		for (i=0; i < t0.len; ++i ) {
+			if (t0.data[i].t > now)
+				break;
+		}
+		
+		INFO("Chopped %d", t0.len - i);
+		t0.len = i;
+		t0.last = floor(now)*1e9;
+		td_write(&t0, argv[2]);
+		return 0;
+	
 	}
-
 	TradeData t1;
 	td_init(&t1);
 	td_read(&t1, argv[3]);

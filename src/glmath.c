@@ -197,9 +197,9 @@ void fr_render(FunctionRanged *self, View *view, Color color, int linear)
 	for (int64_t i = i0; i < i0 + GW.w; ++i) {
 		if ( i >= self->i0 && i < self->i0 + self->len) {
 			y = self->mm[i - self->i0];
-			if (!linear)
-				y = v2(log11*log(y.x), log11*log(y.y));
-			y = v2div(v2sub(y, v2(y0, y0)), view->vps.y);
+			//~ if (!linear)
+				//~ y = v2(log11*log(y.x), log11*log(y.y));
+			y = v2div(v2sub(y, v2(y0+self->yoff, y0+self->yoff)), view->vps.y);
 		} else {
 			y = v2(1e100, 1e100);
 		}
