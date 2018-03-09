@@ -130,13 +130,14 @@ int gl_frame(void)
 		glLineWidth(1.0);
 		draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), 0.0, 2, (GLfloat[]){mxy.x,view.ll.y, mxy.x, view.ur.y});
 		//~ INFO("%f", mxy.x);
-		for (int i=0; i < g_nfuncs; ++i ) {
-			tdat_r[i].yoff = f1_eval_at(tdat+i, mxy.x);
-			//~ V1 f(V1 y)  {return y - y0;}
-			//~ f1_map(tdat+i, f);
-			//~ fr_compile(tdat_r+i, tdat+i, view.vps.x);
+		if (g_nfuncs > 1) {
+			for (int i=0; i < g_nfuncs; ++i ) {
+				tdat_r[i].yoff = f1_eval_at(tdat+i, mxy.x);
+				//~ V1 f(V1 y)  {return y - y0;}
+				//~ f1_map(tdat+i, f);
+				//~ fr_compile(tdat_r+i, tdat+i, view.vps.x);
+			}
 		}
-		
 		
 	}
 	

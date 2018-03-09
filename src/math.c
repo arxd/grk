@@ -35,6 +35,7 @@ V2 v2clamp(V2 v0);
 V1 v1clamp(V1 t);
 
 const char *v2str(V2 v0);
+const char *v1str(V1 v0);
 
 
 typedef V1 Analytic1(int n);
@@ -145,7 +146,27 @@ const char *v2str(V2 v0)
 	static unsigned char idx = 0;
 	static char buffer[256][32];
 	idx = idx + 1;
-	snprintf(buffer[idx], 32, "<%.1f, %.1f>", v0.x, v0.y);
+	snprintf(buffer[idx], 32, "<%s, %s>", v1str(v0.x), v1str(v0.y));
+	return buffer[idx];
+}
+
+const char *v1str(V1 x)
+{
+	V1 z;
+	int u;
+	static unsigned char idx = 0;
+	static char buffer[256][32];
+	
+	char units[] = {'p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T'};
+	
+	for (u=0; u < 9; ++u) {
+		z = x*pow(10.0, -3*(u-4));
+		if (z < 1000 && z >= 1.0)
+			break;
+	}
+	
+	idx = idx + 1;
+	snprintf(buffer[idx], 32, "%.1f%c", z, units[u]);
 	return buffer[idx];
 }
 

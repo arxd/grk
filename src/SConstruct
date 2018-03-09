@@ -1,14 +1,19 @@
 #src
-print(Platform())
 Import('env')
 
 grk_env = env.Clone()
 grk_env.Append(CCFLAGS='-DGL_DRAWING')
 grk_env.GLSL('shaders')
-grk_src = [grk_env.Object('grk_%s.o'%x, x+'.c') for x in ['gl', 'main', 'math', 'logging', 'trades', 'function', 'glmath']]
-pixie_exe = grk_env.Program('grk', grk_src, LIBS=['m', 'GLESv2', 'glfw'])
+
+def objs(e, name, src):
+	return [e.Object('%s_%s.o'%(name, x), x+'.c') for x in src]
+
+
+base_src = ['gl', 'math', 'logging', 'trades', 'function', 'glmath', 'nnet', 'evolve']
+
+exe1 = grk_env.Program('grk', objs(grk_env, 'grk', base_src + ['main']), LIBS=['m', 'GLESv2', 'glfw'])
+exe2= grk_env.Program('ana', objs(grk_env, 'ana', base_src + ['main2']), LIBS=['m', 'GLESv2', 'glfw'])
 
 trade_env = env.Clone()
 trade_env.Append(CCFLAGS='-DINCLUDE_MAIN')
-trade_src = [trade_env.Object('trd_%s.o'%x, x+'.c') for x in ['trades', 'logging', 'math','function']]
-merge = trade_env.Program('merge',trade_src, LIBS=['m'],)
+merge = trade_env.Program('merge',objs(trade_env, 'trd', ['trades', 'logging', 'math','function']), LIBS=['m'],)
