@@ -74,7 +74,7 @@ void td_bin(TradeData *self, Function1 *func, V1 sample_rate, KernType ktype, V1
 	f1_init(func, len + 1);
 	func->x0 = t0-tN;
 	func->dx = sample_rate;
-	INFO("From %.1f .. %.1f s by %f  (%d ... %d)", t0/WEEKS, tN/WEEKS, func->dx,  self->len, len + 1);
+	INFO("From %.1f .. %.1f s by [%f  %f]  (%d)", t0/WEEKS, tN/WEEKS, func->x0,  func->dx, len + 1);
 	
 	V1 t = t0;
 	int a = 0, b;

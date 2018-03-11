@@ -27,6 +27,9 @@ FunctionRanged tdat_r[MAX_FUNCS];
 V1 min_dx;
 //~ Function1 w_rect, w_tri, w_hann, w_hamming, w_blackman, w_blackharris,w_gauss;
 
+V1 prev_vps = 0;
+int prev_h = 1;
+
 void gl_init(void)
 {
 	int max_tex;
@@ -50,6 +53,7 @@ void gl_init(void)
 		f1_map(tdat+i, f);
 	}
 	view_fit(&view, tdat, 1);
+	prev_h = GW.h;
 	for (int i=0;i < g_nfuncs; ++i) {
 		INFO("Range %d: %f", i, view.vps.x);
 		fr_init(tdat_r+i, 1024);
@@ -65,11 +69,6 @@ void gl_init(void)
 
 
 
-
-V1 angle = 0.0;
-
-
-V1 prev_vps = 0;
 
 Color COLORS[MAX_FUNCS] = {
 	{1.0, 0.0, 0.0, 0.5},
@@ -87,6 +86,13 @@ int gl_frame(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 	color = rgb(1.0, 0.8, 0.2);
 	glLineWidth(1.0);
+	
+	if (GW.h != prev_h) {
+		V1 factor = 1.0*prev_h / GW.h;
+		INFO("RESIZE %d %d  %f", GW.w, GW.h, factor); 
+		view_zoom_at(&view, screen_to_view(&view, v2(0, 0)), v2(view.vps.x * factor, view.vps.y * factor));
+		prev_h = GW.h;
+	}
 	
 	if (view.vps.x != prev_vps) {
 		if (view.vps.x < min_dx)
@@ -131,13 +137,10 @@ int gl_frame(void)
 		draw_line_strip(v2(0.0, 0.0), v2(1.0, 1.0), 0.0, 2, (GLfloat[]){mxy.x,view.ll.y, mxy.x, view.ur.y});
 		//~ INFO("%f", mxy.x);
 		if (g_nfuncs > 1) {
-			for (int i=0; i < g_nfuncs; ++i ) {
+			for (int i=0; i < g_nfuncs; ++i )
 				tdat_r[i].yoff = f1_eval_at(tdat+i, mxy.x);
-				//~ V1 f(V1 y)  {return y - y0;}
-				//~ f1_map(tdat+i, f);
-				//~ fr_compile(tdat_r+i, tdat+i, view.vps.x);
-			}
 		}
+		
 		
 	}
 	
